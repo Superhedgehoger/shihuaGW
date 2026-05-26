@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import type { DocumentState, DocType, ProcessMode, MetadataForm } from '../types/document';
 import { parseDocument } from '../core/ruleParser';
+import { applyVbaFormatting } from '../core/vbaFormatter';
 import { runDiagnostics } from '../core/diagnostics';
 import { validateStructure } from '../core/validator';
 
@@ -17,7 +18,7 @@ const INITIAL_METADATA: MetadataForm = {
 export function useDocumentStore() {
   const [state, setState] = useState<DocumentState>({
     rawText: '',
-    docType: '红头文件',
+    docType: '报告',
     processMode: 'full',
     structure: null,
     metadata: INITIAL_METADATA,
@@ -59,9 +60,12 @@ export function useDocumentStore() {
     setState(prev => ({ ...prev, isProcessing: true }));
     try {
       // 1. 结构解析
-      const structure = parseDocument(rawText, docType);
+      const rawStructure = parseDocument(rawText, docType);
+
+      // 2. 应用 VBA 等效排版规则（自动重编号、标题规范化、附件整理等）
+      const structure = applyVbaFormatting(rawStructure);
       
-      // 2. 结合解析内容自动填充元数据（如果为空）
+      // 3. 结合解析内容自动填充元数据（如果为空）
       const newMetadata = { ...metadata };
       if (structure.salutation && !newMetadata.salutation) {
         newMetadata.salutation = structure.salutation;
@@ -75,7 +79,7 @@ export function useDocumentStore() {
         }
       }
 
-      // 3. 运行诊断与校验
+      // 4. 运行诊断与校验
       const diagnosticReport = runDiagnostics(structure);
       const validationResults = validateStructure(structure);
 

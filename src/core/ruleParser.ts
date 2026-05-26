@@ -1,10 +1,15 @@
 import type { DocumentStructure, BodyBlock, DocType, BlockType } from '../types/document';
-import { normalizeText } from './preprocessor';
+import { normalizeText, normalizeDate } from './preprocessor';
 
 /**
- * 将原始文档通过正则和特征分析转化为结构化对象 DocumentStructure 
- * 这个规则引擎完全在本地浏览器离线运行，替代以前的大模型方案
- * 
+ * 将原始文档通过正则和特征分析转化为结构化对象 DocumentStructure
+ * 完全在本地浏览器离线运行
+ *
+ * 对应 VBA 逻辑：
+ *   - GWStyle()：标题层级识别（一、二级标题、段落分类）
+ *   - Title1()：主标题提取、主送机关识别
+ *   - Inscribe()：落款/日期提取与规范化
+ *
  * @param rawText 原始文本
  * @param docType 选择的公文类型
  * @returns 结构化的公文对象
@@ -21,109 +26,210 @@ export function parseDocument(rawText: string, docType: DocType): DocumentStruct
 
   if (lines.length === 0) return structure;
 
-  // 1. 首行提取为主标题
+  // ── 辅助函数 ──
+  let blockIdCounter = 1;
+  const genId = () => `block_${String(blockIdCounter++).padStart(3, '0')}`;
+
+  // ── 1. 首行提取为主标题 ──
+  // 对应 VBA Title1() 中的 doc.Paragraphs(1).Range 处理
   structure.title = lines[0];
   let startIndex = 1;
 
-  // 2. 识别主送机关 (红头文件常见，通常以“：”或“:”结尾且较短)
-  if (docType === '红头文件' && startIndex < lines.length) {
+  // 跳过草稿标注行（如"（草稿）"），对应 VBA Title1() 中 "（草稿）" 特殊处理
+  if (startIndex < lines.length && /^（草稿|草稿）/.test(lines[startIndex])) {
+    structure.title += `\n${lines[startIndex]}`;
+    startIndex++;
+  }
+
+  // ── 2. 识别主送机关 ──
+  // 对应 VBA Title1() 中：If .Text Like "*[：:]?" Then（检查称呼行）
+  // 不仅限于红头文件，所有公文类型均可能有称呼
+  if (startIndex < lines.length) {
     const secondLine = lines[startIndex];
-    if (secondLine.endsWith('：') || secondLine.endsWith(':')) {
-      structure.salutation = secondLine.replace(':', '：'); // 统一变全角冒号
+    // 主送机关特征：以"："结尾，长度 ≤ 40字，不像正文段落（不以序号开头）
+    const isSalutation =
+      (secondLine.endsWith('：') || secondLine.endsWith(':')) &&
+      secondLine.length <= 40 &&
+      !/^[一二三四五六七八九十]、/.test(secondLine) &&
+      !/^（[一二三四五六七八九十]）/.test(secondLine);
+    if (isSalutation) {
+      structure.salutation = secondLine.replace(/:$/, '：'); // 统一为全角冒号
       startIndex++;
     }
   }
 
-  // 辅助函数：生成递增 ID
-  let blockIdCounter = 1;
-  const genId = () => `block_${String(blockIdCounter++).padStart(3, '0')}`;
-
-  // 3. 全局扫描寻找落款和日期（通常在最后几行）
+  // ── 3. 全局扫描寻找落款和日期（倒序扫描最后5行）──
+  // 对应 VBA Inscribe() 中的日期查找逻辑：
+  //   .Text = "^13[0-9]{4}年[0-9]{1,2}月[0-9]{1,2}日[^13^12]"
   let signoffOrgIndex = -1;
   let signoffDateIndex = -1;
 
-  // 倒序匹配日期：2024年1月15日，或是不规范的 2024.1.15
-  for (let j = lines.length - 1; j >= Math.max(0, lines.length - 5); j--) {
-    const line = lines[j];
-    const dateRegex = /^(\d{4})[年.-](\d{1,2})[月.-](\d{1,2})日?$/;
-    if (dateRegex.test(line)) {
+  const dateRegex = /^(\d{4})[年.-](\d{1,2})[月.-](\d{1,2})日?$/;
+  // 扫描倒数 6 行寻找日期，对应 VBA 落款通常在结尾附近
+  for (let j = lines.length - 1; j >= Math.max(0, lines.length - 6); j--) {
+    const rawDate = lines[j];
+    const normalizedDate = normalizeDate(rawDate);
+    const match = normalizedDate.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日$/);
+    if (match) {
       signoffDateIndex = j;
-      // 规范化日期格式
-      const match = line.match(dateRegex);
-      if (match) {
-        if (!structure.signoff) structure.signoff = { organization: '', date: '' };
-        structure.signoff.date = `${match[1]}年${match[2]}月${match[3]}日`;
-      }
+      if (!structure.signoff) structure.signoff = { organization: '', date: '' };
+      // 去掉前导零：对应 VBA Inscribe() 中 "If .Text Like "*0?月*" Then .Characters(6).Delete"
+      structure.signoff.date = `${match[1]}年${parseInt(match[2])}月${parseInt(match[3])}日`;
       break;
     }
   }
-  
-  // 紧接着日期上面那行很可能是落款机关
+
+  // 紧接在日期上方的行，很可能是落款机关
+  // 对应 VBA Inscribe() 中 unit 部分：找到日期行之前不以标点结尾的短行
   if (signoffDateIndex !== -1 && signoffDateIndex > startIndex) {
     const potentialOrgLine = lines[signoffDateIndex - 1];
-    // 排除上面是正文的可能性（简单以长度判断，比如落款机构通常小于30字）
-    if (potentialOrgLine.length <= 30 && !/^[一二三四五六七八九十]/.test(potentialOrgLine)) {
+    // 落款机关特征：≤30字，不以常见正文结尾标点结尾，不是序号开头
+    const isSignoffOrg =
+      potentialOrgLine.length <= 30 &&
+      !/[。！？；]$/.test(potentialOrgLine) &&
+      !/^[一二三四五六七八九十]、/.test(potentialOrgLine) &&
+      !/^（[一二三四五六七八九十]）/.test(potentialOrgLine);
+    if (isSignoffOrg) {
       signoffOrgIndex = signoffDateIndex - 1;
       if (!structure.signoff) structure.signoff = { organization: '', date: '' };
       structure.signoff.organization = potentialOrgLine;
     }
   }
 
-  // 4. 解析正文块与附件
+  // ── 4. 解析正文块、标题与附件 ──
+  // 对应 VBA GWStyle() 中对各段落的 Like 模式匹配：
+  //   "一、*"   → wdStyleHeading2（前端映射为 h1）
+  //   "（一）*" → wdStyleHeading3（前端映射为 h2）
+  //   "#．*"   → wdStyleHeading4（前端映射为 h3）
+  //   "（#）*" → wdStyleHeading5（前端映射为 h4）
+  //   "①②③*" → h5
   let inAttachmentSection = false;
 
   for (let i = startIndex; i < lines.length; i++) {
-    // 如果当前行是落款或日期，跳过，因为上面已提取
-    if (i === signoffOrgIndex || i === signoffDateIndex) {
-      continue;
-    }
+    // 跳过已提取的落款/日期行
+    if (i === signoffOrgIndex || i === signoffDateIndex) continue;
 
     const line = lines[i];
     let type: BlockType = 'body';
     let isFlagged = false;
 
-    // 如果已经在附件区域之下，通常剩下的也是附件内容或者版记附注
     if (inAttachmentSection) {
+      // 已进入附件区域后的所有行都归为附件
       type = 'attachment';
       if (!structure.attachments) structure.attachments = [];
       structure.attachments.push(line);
     } else {
-      // 结构分类规则引擎（基于常见公文排版规范）
-      if (/^[一二三四五六七八九十]+、/.test(line)) {
+      // ── 标题层级识别（对应 VBA GWStyle() 的 For Each i In .Paragraphs 循环） ──
+
+      if (isH1(line)) {
+        // 一级标题："一、内容" 对应 VBA "一、*" Like 匹配 → wdStyleHeading2
         type = 'h1';
-      } else if (/^（[一二三四五六七八九十]+）/.test(line) || /^\([一二三四五六七八九十]+\)/.test(line)) {
-        // 如果手误写成半角括号，规则引擎应当能够识别并标记
+      } else if (isH2(line)) {
+        // 二级标题："（一）内容" 对应 VBA "（一）*" Like 匹配 → wdStyleHeading3
         type = 'h2';
-        if (/^\([一二三四五六七八九十]+\)/.test(line)) isFlagged = true; // 半角括号需提示修正
-      } else if (/^\d+[\.．、]/.test(line)) {
+        // 半角括号标记需要修正（对应 VBA 前期的括号统一）
+        if (/^\([一二三四五六七八九十]+\)/.test(line)) isFlagged = true;
+      } else if (isH3(line)) {
+        // 三级标题："1．内容" 对应 VBA "#．*" Like 匹配 → wdStyleHeading4
         type = 'h3';
-        if (/^\d+[、]/.test(line)) isFlagged = true; // 三级应当是点，用了顿号，做提醒
-      } else if (/^（\d+）/.test(line) || /^\(\d+\)/.test(line)) {
+        // 顿号替代点号是错误格式，需提醒
+        if (/^\d+[、]/.test(line)) isFlagged = true;
+      } else if (isH4(line)) {
+        // 四级标题："（1）内容" 对应 VBA "（#）*" Like 匹配 → wdStyleHeading5
         type = 'h4';
-        if (/^\(\d+\)/.test(line)) isFlagged = true;
-      } else if (/^[①②③④⑤⑥⑦⑧⑨⑩]/.test(line)) {
+        if (/^\(\d+\)/.test(line)) isFlagged = true; // 半角括号
+      } else if (isH5(line)) {
+        // 五级标题：带圈数字 ①②③
         type = 'h5';
-      } else if (line.startsWith('附件：') || line.startsWith('附件:')) {
+      } else if (isAttachmentLine(line)) {
+        // 附件标注："附件：xxx" 对应 VBA 中附件识别 ".Text Like "附件*""
         type = 'attachment';
         inAttachmentSection = true;
-        isFlagged = line.startsWith('附件:'); // 半角冒号提醒
-        
+        // 半角冒号是不规范格式，标记提醒
+        if (line.startsWith('附件:')) isFlagged = true;
+
         if (!structure.attachments) structure.attachments = [];
-        // 处理同一行附带内容，如“附件：1. 管理办法”
-        const content = line.substring(3).trim();
-        if (content) {
-          structure.attachments.push(content);
-        }
+        const content = line.replace(/^附件[：:]\s*/, '').trim();
+        if (content) structure.attachments.push(content);
+      } else if (isCcLine(line)) {
+        // 抄送行识别："抄送：xxx" 或 "抄报：xxx"
+        if (!structure.cc) structure.cc = [];
+        structure.cc.push(line);
       }
     }
 
     structure.body.push({
       id: genId(),
-      type: type,
+      type,
       text: line,
-      flagged: isFlagged
+      flagged: isFlagged,
     });
   }
 
   return structure;
+}
+
+// ============================================================================
+// 各段落类型识别函数（对应 VBA GWStyle() 中的 .Text Like "xxx" 判断）
+// ============================================================================
+
+/**
+ * 一级标题：以中文序号 + 顿号开头（一、二、三、...）
+ * 对应 VBA：If .Text Like "一、*"
+ */
+function isH1(line: string): boolean {
+  return /^[一二三四五六七八九十百]+、/.test(line);
+}
+
+/**
+ * 二级标题：以全角括号 + 中文序号 + 括号包裹（（一）（二）...）
+ * 也兼容半角括号（会被标记为 flagged）
+ * 对应 VBA：If .Text Like "（一）*"
+ */
+function isH2(line: string): boolean {
+  return /^（[一二三四五六七八九十百]+）/.test(line) ||
+         /^\([一二三四五六七八九十百]+\)/.test(line);
+}
+
+/**
+ * 三级标题：以阿拉伯数字 + 句号/全角句号开头（1．2．...）
+ * 也检测错误使用顿号的情况
+ * 对应 VBA：If .Text Like "#．*"
+ */
+function isH3(line: string): boolean {
+  return /^\d+[.．]/.test(line) ||
+         /^\d+、/.test(line);
+}
+
+/**
+ * 四级标题：以全角括号 + 阿拉伯数字 + 括号包裹（（1）（2）...）
+ * 对应 VBA：If .Text Like "（#）*"
+ */
+function isH4(line: string): boolean {
+  return /^（\d+）/.test(line) ||
+         /^\(\d+\)/.test(line);
+}
+
+/**
+ * 五级标题：以带圈数字开头（①②③④⑤...）
+ * 对应 VBA 中的 Heading5 样式识别
+ */
+function isH5(line: string): boolean {
+  return /^[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳]/.test(line);
+}
+
+/**
+ * 附件行识别
+ * 对应 VBA：ElseIf .Text Like "[!^13]附件*" Or .Text Like "附件*"
+ */
+function isAttachmentLine(line: string): boolean {
+  return /^附件[：:]/.test(line);
+}
+
+/**
+ * 抄送/抄报行识别（版记部分）
+ * 对应 VBA 对版记部分的处理（附注、抄送等）
+ */
+function isCcLine(line: string): boolean {
+  return /^(抄送|抄报)[：:]/.test(line);
 }
