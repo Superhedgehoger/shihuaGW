@@ -1,0 +1,118 @@
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--header-height);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-light) 100%);
+  box-shadow: 0 2px 12px rgba(26, 32, 53, 0.25);
+  z-index: 100;
+}
+
+.inner {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 0 var(--space-xl);
+  gap: var(--space-xl);
+}
+
+/* 品牌区 */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-shrink: 0;
+}
+
+.brandIcon {
+  font-size: 24px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.brandText {
+  display: flex;
+  flex-direction: column;
+}
+
+.brandName {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+}
+
+.brandSub {
+  font-size: var(--text-xs);
+  color: rgba(255, 255, 255, 0.55);
+  letter-spacing: 0.03em;
+}
+
+/* 导航 */
+.nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex: 1;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  transition: all var(--transition-fast);
+}
+
+.navLink:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.navLinkActive {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+}
+
+.navIcon {
+  font-size: 15px;
+}
+
+/* 右侧状态区 */
+.statusArea {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  margin-left: auto;
+}
+
+.offlineBadge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(40, 167, 69, 0.2);
+  border: 1px solid rgba(40, 167, 69, 0.4);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  color: #7ee8a2;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.offlineDot {
+  width: 6px;
+  height: 6px;
+  background: #28a745;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.3);
+  animation: pulse 2s infinite;
+}

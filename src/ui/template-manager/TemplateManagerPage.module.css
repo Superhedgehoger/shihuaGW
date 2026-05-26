@@ -1,0 +1,95 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - var(--header-height));
+  margin-top: var(--header-height);
+  overflow: hidden;
+}
+
+/* 顶部工具栏 */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-lg) var(--space-xl);
+  background: var(--color-bg-card);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.toolbarLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pageTitle {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.pageDesc {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* 导入提示 */
+.importToast {
+  padding: var(--space-sm) var(--space-xl);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  animation: fadeIn 0.2s ease;
+  flex-shrink: 0;
+}
+
+.importToastSuccess {
+  background: var(--color-success-light);
+  color: var(--color-success);
+  border-bottom: 1px solid rgba(40, 167, 69, 0.2);
+}
+
+.importToastWarn {
+  background: var(--color-warning-light);
+  color: #856404;
+  border-bottom: 1px solid rgba(230, 168, 23, 0.3);
+}
+
+/* 主体布局 */
+.body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* 左侧列表侧边栏 */
+.sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  background: var(--color-bg-sidebar);
+  border-right: 1px solid var(--color-border);
+  overflow-y: auto;
+}
+
+/* 右侧详情区 */
+.detail {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-xl);
+  background: var(--color-bg-app);
+}
+
+.emptyDetail {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  color: var(--color-text-muted);
+  font-size: var(--text-base);
+}
