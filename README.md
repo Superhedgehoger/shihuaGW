@@ -1,93 +1,115 @@
-# SINOPEC Document Formatter (石化公文排版工具)
+# 石化公文排版工具 (SINOPEC Document Formatter)
 
 <p align="center">
   <img src="https://img.shields.io/badge/React-19.2-blue?logo=react&logoColor=white&style=flat-square" alt="React" />
   <img src="https://img.shields.io/badge/TypeScript-6.0-blue?logo=typescript&logoColor=white&style=flat-square" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Vite-8.0-purple?logo=vite&logoColor=white&style=flat-square" alt="Vite" />
   <img src="https://img.shields.io/badge/PizZip-3.2-orange?style=flat-square" alt="PizZip" />
-  <img src="https://img.shields.io/badge/License-MIT-green?style=flat-square" alt="License" />
+  <img src="https://img.shields.io/badge/开源协议-MIT-green?style=flat-square" alt="License" />
 </p>
 
 <p align="center">
-  <b>English</b> | <a href="README_zh.md">简体中文</a>
+  <b>简体中文</b> | <a href="README_en.md">English</a>
 </p>
 
-SINOPEC Document Formatter is a premium, **100% offline, client-side single page application (SPA)** designed for corporate and administrative offices (specifically optimized for Sinopec Group). It automatically parses, diagnostics, and reformats chaotic draft texts into strictly compliant, beautifully structured official documents matching national and enterprise guidelines.
+石化公文排版工具是一款专为中国石化企业及各级行政机关定制的**高品质、100% 纯本地离线的单页 Web 应用 (SPA)**。它能够自动将日常杂乱、标点格式混乱的草稿文本，一键清洗、重排并规范化为完全符合国家标准及石化企业公文规范的高清排版文件。
 
-By shifting all VBA layout logic directly to the front-end browser sandbox, this tool eliminates the risks of network data leaks and provides a modern, fast, and secure alternative to traditional Word VBA macros.
-
----
-
-## ✨ Core Features
-
-*   **VBA Layout Engine Ported to Front-End**:
-    - **Punctuation & Formatting Polish**: Auto-converts chaotic half-width brackets to full-width in Chinese contexts, cleans abnormal hidden whitespaces, and standardizes list margins.
-    - **5-Tier Heading Auto-Renumbering**: Automatically parses and sequentially calculates numbering trees for up to 5 nested header tiers (e.g. `一、` $\rightarrow$ `（一）` $\rightarrow$ `1.` $\rightarrow$ `（1）` $\rightarrow$ `①`), correcting dot/space misuses.
-    - **Intelligent Layout Inscribing**: Automatically parses and right-aligns signature organizations and dates (auto-converting arbitrary date patterns like `2026/05/27` to traditional Chinese big-written characters).
-*   **Synchronized Dual-Column Standards Manager**:
-    - Select from built-in standard presets: **Sinopec Enterprise Standard (Q/SH 0758—2019)** or **National Government Standard (GB/T 9704—2012)**.
-    - Directly synced with the **Template Editor**—allowing any newly created custom clones or imported templates to dynamically appear in the main standard switcher and immediately govern the live A4 preview layout.
-*   **"Other" Blank Canvas Mode**:
-    - Ideal for writing generic papers, memos, or essays. It skips strict official document rigid elements (such as salutations, file numbers, and signature mandates) but retains robust outline renumbering and applies default standard typography (e.g. FangSong 16pt, 27pt exact line spacing) to form a clean workspace.
-*   **Zero-Garbled Character Export Engine**:
-    - **Self-Generating Fallback**: If backend template files are missing on your host server, the system automatically retracts to a local code-driven builder that parses the document structure and generates standard `.docx` binaries from scratch.
-    - **Pure Binary Packing**: XML compression is strictly compiled via `TextEncoder` into `Uint8Array` byte streams, **completely curing double-byte Chinese character encoding corruption** when double-clicking to open in MS Word or WPS.
-*   **100% Offline & High Security**:
-    - Absolutely **Zero API/Network requests** for data transmission. All mammoth parsing, regex sanitization, and PizZip compression take place inside the browser local sandbox, making it completely leakproof and compliant with enterprise security standards.
+本工具通过将传统的 Word VBA 排版宏算法完整移植并重构到前端浏览器沙箱中运行，**彻底消除了敏感文件在上传服务器解析时的数据外泄隐患**，为您提供一款现代、极速、安全的公文排版新方案。
 
 ---
 
-## 📸 Screenshots & Preview
+## ✨ 核心特色
 
-### 1. New Parallel Standards & Flat Document Type Selectors
-![homepage](review-screenshots/01_new_parallel_selectors.png)
-
-### 2. A4 Live Preview with VBA Auto-Reformatting
-![A4 Preview](review-screenshots/04_parsed_a4_preview.png)
-
-### 3. Comprehensive Format Diagnostics Report Panel
-![Diagnostics](review-screenshots/05_diagnose_report_panel.png)
+*   **VBA 排版算法前端深度重构**：
+    *   **标点与格式清洗**：自动将中文语境下误用的半角括号、逗号等规范为全角，清除多余不可见字符和多余空格，并对列表进行悬挂缩进整理。
+    *   **5级标题自动树形重编号**：深度解析并自动顺序累加重新计算多达5层嵌套标题（例如：`一、` $\rightarrow$ `（一）` $\rightarrow$ `1.` $\rightarrow$ `（1）` $\rightarrow$ `①`），自动修正点号与顿号的混用。
+    *   **落款与日期自动格式化**：智能推导并右缩进落款单位与日期，自动将如 `2026/05/27` 等非标准日期字段大写规范化为符合公文标准的中文传统大写日期。
+*   **同步联动双列标准管理器**：
+    *   并排提供 **“公文标准：”** 与 **“公文类型：”** 两列联动选择框。内置标准包含 **中石化企业标准 (Q/SH 0758—2019)** 和 **国家通用公文标准 (GB/T 9704—2012)**。
+    *   与 **“模板管理页”** 实现 100% 数据打通。您在模板编辑器里克隆、新建或导入的任何自定义排版模板，都会动态同步到左侧的标准下拉列表中，并实时支配右侧的 A4 实时预览排版与纸张样式。
+*   **“其他”类型普通正文模板（空白模板）**：
+    *   非常适用于书写普通的随笔、长文、纪要或自定义段落。在该模式下启动“扁平正文模式”，跳过发文字号、主送机关、落款日期等法定公文特定要素的硬性拆分与红线警告校验（避免红色红叉报错，提供绿色温馨诊断），默认以当前标准的“默认正文格式”（仿宋三号，27磅行距，两端对齐）优雅平铺。
+    *   **保留大纲重编号**：即便在空白模板下，只要段落中出现了 `一、` 或 `（一）` 等，系统依然会自动对其进行标点校正和 1-5 级标题树重新顺序编号，保障极高的实用性。
+*   **100% 彻底杜绝乱码的 Word 导出引擎**：
+    *   **自适应容错回退**：若宿主服务器上缺少预置的 Word `.docx` 模板文件，导出引擎会自动平滑回退至纯前端从零构建模式，利用 OOXML 架构重新从头绘制标准页面配置。
+    *   **纯二进制无损打包**：所有 XML 压缩包的字节流写入全部通过 `TextEncoder` 编译为 `Uint8Array` 并强制使用二进制模式写入 `PizZip`，**100% 根治了导出 Word 文档双字节中文字符显示为黑块或符号的乱码 bug**，实测在任何版本的 MS Word 或 WPS 下打开均完美呈现。
+*   **100% 离线运行，安全合规**：
+    *   **零 API 调用与网络请求**。所有 mammoth 文档解析、正则规则清洗和 docx 二进制文件压缩全部在您本机的浏览器沙箱中本地执行，断网可完美运行，100% 阻断一切泄密链路。
 
 ---
 
-## 🚀 Quick Start
+## 📸 运行快照与效果
 
-### Prerequisites
-- Node.js (v18.0.0 or higher recommended, tested on v24.14.1)
-- npm (v9.0.0 or higher)
+### 1. 新版双列并排标准/类型选择器
+![标准并排](review-screenshots/01_new_parallel_selectors.png)
 
-### Installation
-Clone the repository and install all developer dependencies locally:
+### 2. A4 纸张实时预览与自动排版效果
+![A4预览](review-screenshots/04_parsed_a4_preview.png)
+
+### 3. 多维度格式诊断报告面板
+![诊断面板](review-screenshots/05_diagnose_report_panel.png)
+
+---
+
+## 🚀 快速启动
+
+### 准备环境
+- Node.js (建议 v18.0.0 或更高版本，本测试在 v24.14.1 下通过)
+- npm (v9.0.0 或更高版本)
+
+### 安装依赖
+克隆本项目仓库并安装依赖包：
 ```bash
 git clone https://github.com/Superhedgehoger/shihuaGW.git
 cd shihua-doc-formatter
 npm install
 ```
 
-### Local Development
-Launch the local Vite development server:
+### 开发模式运行
+在本地启动 Vite 开发服务器：
 ```bash
 npm run dev
 ```
-Open `http://localhost:5173/` in your browser to interact with the application.
+打开浏览器访问 `http://localhost:5173/` 即可直接使用。
 
-### Production Build
-Compile and bundle the application into a optimized, lightweight, single-page static distribution:
+### 生产环境打包
+将应用编译为轻量级、高度压缩的纯静态单页发布包：
 ```bash
 npm run build
 ```
-The compiled SPA is located in the `dist/` directory, ready to be hosted on any static file server or intranet web server.
+编译好的静态文件将被存放在 `dist/` 目录下，您可以将其部署在任何内网 Web 服务器或静态文件服务器上。
 
 ---
 
-## ⌨️ Global Hotkeys
+## ⌨️ 全局快捷键
 
-Enhance your writing productivity with global keyboard shortcuts:
--   **`Ctrl + Enter`**: Instantly parse, clean, and reformat current text.
--   **`Ctrl + S`**: Trigger instant validation and export to a standard `.docx` file.
+使用快捷键可以成倍提高公文排版处理效率：
+-   **`Ctrl + Enter`**：一键自动执行文本解析、标点清洗与自动排版。
+-   **`Ctrl + S`**：一键自动校验并触发标准公文 `.docx` 文档的导出下载。
 
 ---
 
-## 🛡️ License
+## 📝 修改日志 (Changelog)
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+### v1.3.0 (2026-05-27)
+*   **[新增]** **老版 Word (`.doc`) 离线解析**：全新基于 `cfb`（OLE复合解压引擎）和 UTF-16LE 启发式扫描设计了纯前端 `.doc` 文本抽提器，实现 100% 离线脱水提取。
+*   **[新增]** **Markdown (`.md` / `.markdown`) 支持**：上传面板无缝打通对 `.md` 文本大纲的读取支持。
+*   **[修复]** **上传 DOCX 二次导出乱码缺陷**：针对从外部文档中抽出的隐藏低位非合规 XML 字符进行正规化强力清洗，完美消除其破坏 `document.xml` 树架构引发 Word 渲染回退为“怪异符号黑块”的隐蔽 Bug。
+*   **[更新]** **上传交互体验优化**：全线升级上传按钮与拖拽提示文案，增加大小写不敏感的多格式防呆文件后缀匹配。
+
+### v1.2.0 (2026-05-27)
+*   **[修复]** **PizZip 编码乱码根治**：重写 XML 字符串压包流程，使用 `TextEncoder.encode()` 统一编译为 `Uint8Array` 并在压包时强制加入 `{ binary: true }` 二进制打包声明，**彻底杜绝了导出文件中文显示为黑块字符的顽疾**。
+*   **[重构]** **并排标准切换面板**：ModeSelector 去掉原有公文类型层级分组。并排新增“公文标准”切换框，支持“石化标准 (Q/SH)”与“国家标准 (GB/T)”双列并排联动。
+*   **[联动]** **活跃模板实时同步**：公文标准选项实时拉取自系统底层的“模板管理器”所有内置和自定义克隆模板，保证左侧选项与右侧预览、导出和模板管理页数据 100% 保持一致。
+*   **[新增]** **“其他”自适应正文大纲模板**：新增 `'其他'` 类型空白模板，豁免发文字号等死板公文要素诊断，默认应用优雅仿宋正文但保留大纲自动重编号。
+
+### v1.1.0 (2026-05-26)
+*   **[移植]** **VBA 自动排版逻辑前端移植**：将传统公文自动重编号、标点全角规范、三四级标题补全句号、日期转换等 VBA 排版核心算法完整移植为浏览器端离线 JS 引擎。
+*   **[修复]** **自适应容错导出**：彻底修复当后端缺失 Word 模板文件时系统报错阻塞的严重 Bug，新增纯前端 OOXML 自适应从零构建导出模式。
+*   **[验证]** **Playwright 自动化 Review 交互测试**：引入无头浏览器仿真脚本，实现对引导窗关闭、表单填充、解析、诊断以及导出的多角度画面捕获与控制台零报错审查。
+
+---
+
+## 🛡️ 开源协议
+
+本项目基于 MIT 协议开源 - 详情请参阅 [LICENSE](LICENSE) 文件。
