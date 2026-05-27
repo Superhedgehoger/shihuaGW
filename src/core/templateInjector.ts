@@ -497,15 +497,15 @@ function buildDocxFromScratch(
   // ── 组装 PizZip 包 ──
   const encoder = new TextEncoder();
   const zip = new PizZip();
-  zip.file('[Content_Types].xml', encoder.encode(buildContentTypes(hasFooter)));
-  zip.file('_rels/.rels', encoder.encode(buildRootRels()));
-  zip.file('word/document.xml', encoder.encode(documentXml));
-  zip.file('word/styles.xml', encoder.encode(buildStyles()));
-  zip.file('word/settings.xml', encoder.encode(buildSettings()));
-  zip.file('word/_rels/document.xml.rels', encoder.encode(buildDocumentRels(hasFooter)));
+  zip.file('[Content_Types].xml', encoder.encode(buildContentTypes(hasFooter)), { binary: true });
+  zip.file('_rels/.rels', encoder.encode(buildRootRels()), { binary: true });
+  zip.file('word/document.xml', encoder.encode(documentXml), { binary: true });
+  zip.file('word/styles.xml', encoder.encode(buildStyles()), { binary: true });
+  zip.file('word/settings.xml', encoder.encode(buildSettings()), { binary: true });
+  zip.file('word/_rels/document.xml.rels', encoder.encode(buildDocumentRels(hasFooter)), { binary: true });
 
   if (hasFooter) {
-    zip.file('word/footer1.xml', encoder.encode(buildFooterXml()));
+    zip.file('word/footer1.xml', encoder.encode(buildFooterXml()), { binary: true });
   }
 
   return zip.generate({
@@ -678,7 +678,7 @@ async function injectIntoTemplate(
   let modifiedXml = serializer.serializeToString(xmlDoc);
   modifiedXml = modifiedXml.replace(/ xmlns=""/g, '');
   const encoder = new TextEncoder();
-  zip.file('word/document.xml', encoder.encode(modifiedXml));
+  zip.file('word/document.xml', encoder.encode(modifiedXml), { binary: true });
 
   return zip.generate({
     type: 'blob',
