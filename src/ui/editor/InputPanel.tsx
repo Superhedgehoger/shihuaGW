@@ -1,5 +1,6 @@
 import { useRef, useState, useCallback } from 'react';
 import { parseDocxToText } from '../../parsers/docxParser';
+import { parseDocToText } from '../../parsers/docParser';
 import { parseTxt } from '../../parsers/txtParser';
 
 interface Props {
@@ -26,12 +27,15 @@ export default function InputPanel({ text, onTextChange }: Props) {
     setUploadError(null);
     try {
       let extractedText = '';
-      if (file.name.endsWith('.docx')) {
+      const filenameLower = file.name.toLowerCase();
+      if (filenameLower.endsWith('.docx')) {
         extractedText = await parseDocxToText(file);
-      } else if (file.name.endsWith('.txt')) {
+      } else if (filenameLower.endsWith('.doc')) {
+        extractedText = await parseDocToText(file);
+      } else if (filenameLower.endsWith('.txt') || filenameLower.endsWith('.md') || filenameLower.endsWith('.markdown')) {
         extractedText = await parseTxt(file);
       } else {
-        setUploadError('仅支持 .docx 或 .txt 格式的文件');
+        setUploadError('仅支持 .docx、.doc、.txt 或 .md 格式的文件');
         return;
       }
 
@@ -76,11 +80,11 @@ export default function InputPanel({ text, onTextChange }: Props) {
           disabled={isUploading}
           style={{ flex: 1 }}
         >
-          {isUploading ? '⏳ 解析中...' : '📂 上传 .docx / .txt'}
+          {isUploading ? '⏳ 解析中...' : '📂 上传 .docx / .doc / .txt / .md'}
         </button>
         <input
           type="file"
-          accept=".docx,.txt"
+          accept=".docx,.doc,.txt,.md,.markdown"
           ref={fileInputRef}
           style={{ display: 'none' }}
           onChange={handleFileUpload}
@@ -120,7 +124,7 @@ export default function InputPanel({ text, onTextChange }: Props) {
           padding: 'var(--space-md)',
           minHeight: '200px',
         }}
-        placeholder={'在此粘贴公文文字...\n\n或将 .docx / .txt 文件拖拽至此区域\n\n解析快捷键：Ctrl+Enter'}
+        placeholder={'在此粘贴公文文字...\n\n或将 .docx / .doc / .txt / .md 文件拖拽至此区域\n\n解析快捷键：Ctrl+Enter'}
         value={text}
         onChange={e => onTextChange(e.target.value)}
       />

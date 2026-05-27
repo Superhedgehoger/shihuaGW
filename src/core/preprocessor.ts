@@ -85,9 +85,8 @@ export function normalizeDate(line: string): string {
  * @returns 规范化后的文本
  */
 export function normalizeText(text: string): string {
-  if (!text) return '';
-
-  let cleaned = text;
+  // ── 0. 强力清洗非合规的 XML 控制字符，防止 docx 提取出的隐藏脏字节导致生成的 XML 被破坏 ──
+  let cleaned = text.replace(/[^\x09\x0A\x0D\x20-\uD7FF\uE000-\uFFFD\u10000-\u10FFFF]/g, '');
 
   // ── 1. 手动换行符统一为 \n（对应 VBA Initial() 中 "^l" → "^p"）──
   cleaned = cleaned.replace(/\r\n/g, '\n').replace(/\r/g, '\n');

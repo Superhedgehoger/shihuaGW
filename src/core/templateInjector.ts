@@ -214,8 +214,9 @@ function buildParagraphXml(text: string, styleKey: string): string {
     ? `<w:ind w:firstLine="${s.indentFirstTwip}" w:right="${s.indentRightTwip ?? 0}"/>`
     : '';
 
-  // 转义 XML 特殊字符
+  // 转义 XML 特殊字符并过滤非法控制字符
   const escaped = text
+    .replace(/[^\x09\x0A\x0D\x20-\uD7FF\uE000-\uFFFD\u10000-\u10FFFF]/g, '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -604,6 +605,7 @@ async function injectIntoTemplate(
   const createParagraph = (text: string, styleKey: string): Element => {
     const s = PARA_STYLES[styleKey] ?? PARA_STYLES['body'];
     const escaped = text
+      .replace(/[^\x09\x0A\x0D\x20-\uD7FF\uE000-\uFFFD\u10000-\u10FFFF]/g, '')
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');

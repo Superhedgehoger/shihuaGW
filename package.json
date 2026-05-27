@@ -17,6 +17,7 @@
     "vite": "^8.0.4"
   },
   "dependencies": {
+    "cfb": "^1.2.2",
     "mammoth": "^1.12.0",
     "pizzip": "^3.2.0",
     "react": "^19.2.5",
