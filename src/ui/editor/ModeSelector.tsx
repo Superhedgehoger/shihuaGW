@@ -1,4 +1,5 @@
 import type { ProcessMode, DocType } from '../../types/document';
+import type { TemplateConfig } from '../../types/template';
 
 interface Props {
   mode: ProcessMode;
@@ -7,6 +8,7 @@ interface Props {
   onDocTypeChange: (type: DocType) => void;
   activeTemplateId: string;
   onTemplateChange: (id: string) => void;
+  templates: TemplateConfig[]; // 动态同步的可用模板列表
 }
 
 /**
@@ -41,7 +43,8 @@ export default function ModeSelector({
   docType,
   onDocTypeChange,
   activeTemplateId,
-  onTemplateChange
+  onTemplateChange,
+  templates
 }: Props) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
@@ -58,8 +61,9 @@ export default function ModeSelector({
             value={activeTemplateId}
             onChange={e => onTemplateChange(e.target.value)}
           >
-            <option value="qsh">石化标准 (Q/SH)</option>
-            <option value="gb">国家标准 (GB/T)</option>
+            {templates.map(tmpl => (
+              <option key={tmpl.id} value={tmpl.id}>{tmpl.name}</option>
+            ))}
           </select>
         </div>
 
