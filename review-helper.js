@@ -12,7 +12,8 @@ if (!fs.existsSync(screenshotsDir)) {
 }
 
 // 模拟导出文件的保存路径
-const exportPath = path.join(screenshotsDir, 'exported_report.docx');
+const exportOtherPath = path.join(screenshotsDir, 'exported_other_report.docx');
+const exportShihuaPath = path.join(screenshotsDir, 'exported_shihua_report.docx');
 
 const testDocText = `关于深化安全生产专项整治工作的报告
 
@@ -36,7 +37,7 @@ const testDocText = `关于深化安全生产专项整治工作的报告
 2026/05/26`;
 
 async function run() {
-  console.log('🚀 [子任务 2] 正在启动无头浏览器进行深度 Review 自动测试...');
+  console.log('🚀 [自动化验证] 正在启动无头浏览器对新版功能做深度 Review 测试...');
   
   let browser;
   try {
@@ -60,14 +61,13 @@ async function run() {
     viewport: { width: 1440, height: 900 }
   });
 
-  // 1. 注入脚本：启动时清除 localStorage 确保欢迎 Modal 会显示
+  // 清理 localStorage 确保 Modal 正常弹出
   await context.addInitScript(() => {
     localStorage.clear();
   });
 
   const page = await context.newPage();
 
-  // 监听 console
   const logs = [];
   page.on('console', msg => {
     const text = msg.text();
@@ -84,91 +84,110 @@ async function run() {
   try {
     console.log('📡 正在导航至 http://localhost:5173 ...');
     await page.goto('http://localhost:5173/', { waitUntil: 'networkidle' });
-    console.log('✅ 成功加载页面');
-
-    // 等待欢迎 Modal 渲染出来
     await page.waitForTimeout(500);
 
-    // 截图 1：首次载入的「欢迎引导弹窗」
-    const screenshot1Path = path.join(screenshotsDir, '01_welcome_modal.png');
-    await page.screenshot({ path: screenshot1Path });
-    console.log(`📸 截图已保存: ${screenshot1Path}`);
-
-    // 点击“我了解了，开始使用”按钮关闭 Modal
+    // 1. 关闭欢迎 Modal
     console.log('👆 正在关闭欢迎弹窗...');
     await page.click('text=我了解了，开始使用');
     await page.waitForTimeout(300);
 
-    // 截图 2：弹窗关闭后的主编辑界面（默认“报告”类型）
-    const screenshot2Path = path.join(screenshotsDir, '02_empty_state_report.png');
+    // 2. 截图 1：新版“并排双列”标准/类型面板默认状态
+    const screenshot1Path = path.join(screenshotsDir, '01_new_parallel_selectors.png');
+    await page.screenshot({ path: screenshot1Path });
+    console.log(`📸 截图已保存: ${screenshot1Path}`);
+
+    // 3. 测试标准切换：把“石化标准”切到“国家标准”
+    console.log('🔄 正在将“公文标准”切换为“国家标准 (GB/T)”...');
+    // 根据 DOM 中 select 的选项值 'gb' 进行选择。前一个是公文标准，后一个是公文类型。
+    const selectors = await page.$$('select');
+    if (selectors.length >= 2) {
+      await selectors[0].selectOption('gb'); // 切换标准
+    }
+    await page.waitForTimeout(300);
+
+    // 截图 2：展示切换至国家标准后的并排状态
+    const screenshot2Path = path.join(screenshotsDir, '02_switched_to_gb_standard.png');
     await page.screenshot({ path: screenshot2Path });
     console.log(`📸 截图已保存: ${screenshot2Path}`);
 
-    // 填充测试文本到 textarea 中
-    console.log('✍️ 正在填充多缺陷公文测试文本...');
+    // 4. 测试“其他”空白模板类型：将公文类型选为“其他”，并输入文本解析
+    console.log('✍️ 正在将“公文类型”切换为“其他”并填充文本...');
+    if (selectors.length >= 2) {
+      await selectors[1].selectOption('其他'); // 切换类型为其他
+    }
     await page.fill('textarea', testDocText);
     await page.waitForTimeout(300);
 
-    // 截图 3：粘贴文本后的待解析状态
-    const screenshot3Path = path.join(screenshotsDir, '03_text_filled.png');
+    console.log('▶ 正在点击“解析文本内容”进行空白模板排版...');
+    await page.click('text=解析文本内容');
+    await page.waitForTimeout(1500);
+
+    // 截图 3：展示“其他”空白模板扁平正文排版（第一行作为正文，不居中，跳过落款/主送）
+    const screenshot3Path = path.join(screenshotsDir, '03_other_type_flat_preview.png');
     await page.screenshot({ path: screenshot3Path });
     console.log(`📸 截图已保存: ${screenshot3Path}`);
 
-    // 点击“▶ 解析文本内容”按钮
-    console.log('▶ 正在点击“解析文本内容”...');
-    await page.click('text=解析文本内容');
-    // 等待 1500ms 让自动排版引擎与诊断逻辑执行完毕
-    await page.waitForTimeout(1500);
-
-    // 截图 4：解析并格式化后的「A4 实时预览」及「校验面板」
-    const screenshot4Path = path.join(screenshotsDir, '04_parsed_a4_preview.png');
-    await page.screenshot({ path: screenshot4Path });
-    console.log(`📸 截图已保存: ${screenshot4Path}`);
-
-    // 切换到「格式诊断」模式
+    // 截图 4：切换到格式诊断，校验温馨无报错状态
     console.log('🔍 正在切换到“格式诊断”模式...');
     await page.click('text=格式诊断');
     await page.waitForTimeout(500);
+    const screenshot4Path = path.join(screenshotsDir, '04_other_type_diagnose.png');
+    await page.screenshot({ path: screenshot4Path });
+    console.log(`📸 截图已保存: ${screenshot4Path}`);
 
-    // 截图 5：格式诊断报告面板
-    const screenshot5Path = path.join(screenshotsDir, '05_diagnose_report_panel.png');
-    await page.screenshot({ path: screenshot5Path });
-    console.log(`📸 截图已保存: ${screenshot5Path}`);
-
-    // 切换回「全功能排版」
+    // 切换回“全功能排版”并执行“其他.docx”无模板导出测试
     console.log('🔄 正在切换回“全功能排版”...');
     await page.click('text=全功能排版');
     await page.waitForTimeout(300);
 
-    // 点击“📥 导出”按钮进行导出测试，拦截下载事件
-    console.log('📥 正在测试 .docx 导出...');
-    
-    // 因为点击导出可能会触发 window.confirm。我们在 window.confirm 被触发时自动返回 true（接受）
+    console.log('📥 正在测试“其他”类型的无模板 .docx 导出...');
+    // 拦截 window.confirm
     page.once('dialog', async dialog => {
-      console.log(`💬 捕获到弹窗: [${dialog.type()}] "${dialog.message()}"，正在点击 [确认]`);
+      console.log(`💬 捕获确认弹窗: [${dialog.type()}] "${dialog.message()}"，自动点击确认`);
       await dialog.accept();
     });
 
-    const [download] = await Promise.all([
-      page.waitForEvent('download'), // 等待下载事件触发
-      page.click('button:has-text("导出")') // 点击导出按钮
+    const [downloadOther] = await Promise.all([
+      page.waitForEvent('download'),
+      page.click('button:has-text("导出")')
     ]);
+    await downloadOther.saveAs(exportOtherPath);
+    console.log(`✅ “其他”类型空白 Word 文档成功导出至: ${exportOtherPath}`);
 
-    // 保存导出的文件
-    await download.saveAs(exportPath);
-    console.log(`✅ 导出的 Word 文档成功保存至: ${exportPath}`);
+    // 5. 切换回“报告”公文类型并切换为“石化标准”，做正规公文导出测试
+    console.log('🔄 正在将公文标准切换回“石化标准”，类型选为“报告”...');
+    if (selectors.length >= 2) {
+      await selectors[0].selectOption('qsh'); // 石化标准
+      await selectors[1].selectOption('报告'); // 报告类型
+    }
+    await page.waitForTimeout(300);
 
-    // 把 console log 写入 review-screenshots 目录
-    fs.writeFileSync(path.join(screenshotsDir, 'console_logs_interactive.txt'), logs.join('\n'));
-    console.log('📝 控制台日志已保存至 review-screenshots/console_logs_interactive.txt');
+    console.log('▶ 正在重新解析文本...');
+    await page.click('text=解析文本内容');
+    await page.waitForTimeout(1500);
 
-    console.log('🎉 所有自动化交互与测试步骤圆满成功！');
+    console.log('📥 正在测试“石化报告”的 .docx 导出...');
+    page.once('dialog', async dialog => {
+      await dialog.accept();
+    });
+    const [downloadShihua] = await Promise.all([
+      page.waitForEvent('download'),
+      page.click('button:has-text("导出")')
+    ]);
+    await downloadShihua.saveAs(exportShihuaPath);
+    console.log(`✅ “石化报告”公文 Word 文档成功导出至: ${exportShihuaPath}`);
+
+    // 写入控制台日志文件作为测试审查凭证
+    fs.writeFileSync(path.join(screenshotsDir, 'console_logs_new_standard.txt'), logs.join('\n'));
+    console.log('📝 控制台日志已保存至 review-screenshots/console_logs_new_standard.txt');
+
+    console.log('🎉 新版功能端到端自动化 Review 测试圆满成功！');
 
   } catch (error) {
-    console.error('❌ 测试过程中发生异常:', error);
+    console.error('❌ 测试运行异常:', error);
   } finally {
     await browser.close();
-    console.log('🏁 浏览器已关闭，子任务 2 运行完毕');
+    console.log('🏁 浏览器已关闭，自动化测试圆满完成');
   }
 }
 

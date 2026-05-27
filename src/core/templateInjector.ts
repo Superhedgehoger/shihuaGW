@@ -495,16 +495,17 @@ function buildDocxFromScratch(
 </w:document>`;
 
   // ── 组装 PizZip 包 ──
+  const encoder = new TextEncoder();
   const zip = new PizZip();
-  zip.file('[Content_Types].xml', buildContentTypes(hasFooter));
-  zip.file('_rels/.rels', buildRootRels());
-  zip.file('word/document.xml', documentXml);
-  zip.file('word/styles.xml', buildStyles());
-  zip.file('word/settings.xml', buildSettings());
-  zip.file('word/_rels/document.xml.rels', buildDocumentRels(hasFooter));
+  zip.file('[Content_Types].xml', encoder.encode(buildContentTypes(hasFooter)));
+  zip.file('_rels/.rels', encoder.encode(buildRootRels()));
+  zip.file('word/document.xml', encoder.encode(documentXml));
+  zip.file('word/styles.xml', encoder.encode(buildStyles()));
+  zip.file('word/settings.xml', encoder.encode(buildSettings()));
+  zip.file('word/_rels/document.xml.rels', encoder.encode(buildDocumentRels(hasFooter)));
 
   if (hasFooter) {
-    zip.file('word/footer1.xml', buildFooterXml());
+    zip.file('word/footer1.xml', encoder.encode(buildFooterXml()));
   }
 
   return zip.generate({
@@ -676,7 +677,8 @@ async function injectIntoTemplate(
   const serializer = new XMLSerializer();
   let modifiedXml = serializer.serializeToString(xmlDoc);
   modifiedXml = modifiedXml.replace(/ xmlns=""/g, '');
-  zip.file('word/document.xml', modifiedXml);
+  const encoder = new TextEncoder();
+  zip.file('word/document.xml', encoder.encode(modifiedXml));
 
   return zip.generate({
     type: 'blob',

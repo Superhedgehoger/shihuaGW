@@ -27,7 +27,7 @@ export function runDiagnostics(structure: DocumentStructure): DiagnosticReport {
   };
 
   // 1. 结构化特征诊断
-  if (!structure.title) {
+  if (!structure.title && structure.docType !== '其他') {
     addIssue('structure', 'error', '未识别到文档标题。请确保第一行不为空。');
   }
 

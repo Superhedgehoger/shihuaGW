@@ -25,7 +25,9 @@ export type DocType =
   | '议案'
   | '意见'
   // ── 特殊格式 ──
-  | '桌签';
+  | '桌签'
+  // ── 自定义格式 ──
+  | '其他';
 
 /** 处理模式枚举 */
 export type ProcessMode = 'full' | 'diagnose' | 'quickfix';

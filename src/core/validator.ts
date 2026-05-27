@@ -15,11 +15,15 @@ export function validateStructure(structure: DocumentStructure): ValidationResul
   };
 
   // 1. 通用检查
-  addResult('has-title', !!structure.title, 'error', 
-    structure.title ? '✔️ 已具备主标题' : '❌ 缺少主标题');
-
-  addResult('has-body', structure.body.length > 0, 'error', 
-    structure.body.length > 0 ? '✔️ 已具备正文内容' : '❌ 缺少正文内容');
+  if (structure.docType !== '其他') {
+    addResult('has-title', !!structure.title, 'error', 
+      structure.title ? '✔️ 已具备主标题' : '❌ 缺少主标题');
+    addResult('has-body', structure.body.length > 0, 'error', 
+      structure.body.length > 0 ? '✔️ 已具备正文内容' : '❌ 缺少正文内容');
+  } else {
+    addResult('has-body', structure.body.length > 0, 'error', 
+      structure.body.length > 0 ? '✔️ 已具备内容' : '❌ 缺少内容');
+  }
 
   // 2. 根据不同公文类型的特殊校验
   if (structure.docType === '红头文件') {

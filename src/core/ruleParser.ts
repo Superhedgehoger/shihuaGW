@@ -30,6 +30,41 @@ export function parseDocument(rawText: string, docType: DocType): DocumentStruct
   let blockIdCounter = 1;
   const genId = () => `block_${String(blockIdCounter++).padStart(3, '0')}`;
 
+  // ── 针对「其他」类型的空白模板处理（自适应扁平正文模式） ──
+  if (docType === '其他') {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line.trim()) continue;
+
+      let type: BlockType = 'body';
+      let isFlagged = false;
+
+      // 依然允许并重整 1-5 级标题，方便排版自动重编号
+      if (isH1(line)) {
+        type = 'h1';
+      } else if (isH2(line)) {
+        type = 'h2';
+        if (/^\([一二三四五六七八九十]+\)/.test(line)) isFlagged = true;
+      } else if (isH3(line)) {
+        type = 'h3';
+        if (/^\d+[、]/.test(line)) isFlagged = true;
+      } else if (isH4(line)) {
+        type = 'h4';
+        if (/^\(\d+\)/.test(line)) isFlagged = true;
+      } else if (isH5(line)) {
+        type = 'h5';
+      }
+
+      structure.body.push({
+        id: genId(),
+        type,
+        text: line,
+        flagged: isFlagged,
+      });
+    }
+    return structure;
+  }
+
   // ── 1. 首行提取为主标题 ──
   // 对应 VBA Title1() 中的 doc.Paragraphs(1).Range 处理
   structure.title = lines[0];

@@ -1,0 +1,5 @@
+[DEBUG] [vite] connecting...
+[INFO] %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[DEBUG] [vite] connected.
+[INFO] [exportDocx] 无法请求模板文件 (/templates/gb/其他.docx)，已自动切换为从头生成模式。
+[INFO] [exportDocx] 无法请求模板文件 (/templates/qsh/报告.docx)，已自动切换为从头生成模式。

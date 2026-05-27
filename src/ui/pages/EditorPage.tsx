@@ -27,7 +27,7 @@ export default function EditorPage() {
     updateBlock,
   } = useDocumentStore();
 
-  const { getActiveTemplate } = useTemplateStore();
+  const { getActiveTemplate, store: templateStore, setActiveTemplate } = useTemplateStore();
   const activeTemplate = getActiveTemplate();
 
   const [isExporting, setIsExporting] = useState(false);
@@ -102,6 +102,8 @@ export default function EditorPage() {
               onModeChange={setProcessMode}
               docType={state.docType}
               onDocTypeChange={setDocType}
+              activeTemplateId={templateStore.activeTemplateId}
+              onTemplateChange={setActiveTemplate}
             />
           </div>
 

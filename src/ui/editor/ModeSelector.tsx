@@ -5,53 +5,80 @@ interface Props {
   onModeChange: (mode: ProcessMode) => void;
   docType: DocType;
   onDocTypeChange: (type: DocType) => void;
+  activeTemplateId: string;
+  onTemplateChange: (id: string) => void;
 }
 
 /**
- * 公文类型选项按标准分组定义
- * 分为：石化内部专用、法定公文类型（GB/T 9704—2012 §4）、特殊格式
+ * 扁平化的公文类型定义（去掉分组层级）
+ * 将高频常用类型如报告、请示、通知置于最前
  */
-const DOC_TYPE_GROUPS: Array<{ label: string; types: DocType[] }> = [
-  {
-    label: '石化内部专用',
-    types: ['红头文件', '工作表单'],
-  },
-  {
-    label: '法定公文类型',
-    types: [
-      '报告', '公报', '公告', '函', '会议纪要',
-      '决定', '决议', '命令', '批复', '请示',
-      '通报', '通告', '通知', '议案', '意见',
-    ],
-  },
-  {
-    label: '特殊格式',
-    types: ['桌签'],
-  },
+const ALL_DOC_TYPES: DocType[] = [
+  '报告',
+  '请示',
+  '通知',
+  '意见',
+  '函',
+  '会议纪要',
+  '决定',
+  '决议',
+  '命令',
+  '批复',
+  '通报',
+  '通告',
+  '公告',
+  '公报',
+  '议案',
+  '红头文件',
+  '工作表单',
+  '桌签',
+  '其他'
 ];
 
-export default function ModeSelector({ mode, onModeChange, docType, onDocTypeChange }: Props) {
+export default function ModeSelector({
+  mode,
+  onModeChange,
+  docType,
+  onDocTypeChange,
+  activeTemplateId,
+  onTemplateChange
+}: Props) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
-      {/* 公文类型选项 */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-md)' }}>
-        <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>
-          公文类型：
-        </span>
-        <select
-          className="input"
-          style={{ width: '180px' }}
-          value={docType}
-          onChange={e => onDocTypeChange(e.target.value as DocType)}
-        >
-          {DOC_TYPE_GROUPS.map(group => (
-            <optgroup key={group.label} label={group.label}>
-              {group.types.map(type => (
-                <option key={type} value={type}>{type}</option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
+      {/* 公文标准与类型并排双列选项 */}
+      <div style={{ display: 'flex', gap: 'var(--space-md)', flexWrap: 'wrap' }}>
+        {/* 公文标准切换 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', flex: 1, minWidth: '180px' }}>
+          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>
+            公文标准：
+          </span>
+          <select
+            className="input"
+            style={{ flex: 1, minWidth: '110px' }}
+            value={activeTemplateId}
+            onChange={e => onTemplateChange(e.target.value)}
+          >
+            <option value="qsh">石化标准 (Q/SH)</option>
+            <option value="gb">国家标准 (GB/T)</option>
+          </select>
+        </div>
+
+        {/* 公文类型选项（去分组） */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-sm)', flex: 1, minWidth: '180px' }}>
+          <span style={{ fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>
+            公文类型：
+          </span>
+          <select
+            className="input"
+            style={{ flex: 1, minWidth: '110px' }}
+            value={docType}
+            onChange={e => onDocTypeChange(e.target.value as DocType)}
+          >
+            {ALL_DOC_TYPES.map(type => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* 模式切换 */}
