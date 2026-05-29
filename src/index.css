@@ -329,3 +329,220 @@ input, textarea, select {
   flex-direction: column;
   min-height: 100vh;
 }
+
+/* ======================================================== */
+/* 弹窗与历史侧滑面板（历史/设置）                             */
+/* ======================================================== */
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(26, 32, 53, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeInOverlay var(--transition-base) forwards;
+}
+
+@keyframes fadeInOverlay {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-container {
+  background: var(--color-bg-card);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-xl);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  max-height: 85vh;
+  animation: scaleInModal var(--transition-base) cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes scaleInModal {
+  from { opacity: 0; transform: scale(0.95) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-xl) var(--space-2xl);
+  border-bottom: 1px solid var(--color-border);
+  background: linear-gradient(to right, var(--color-bg-sidebar), var(--color-bg-card));
+}
+
+.modal-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.modal-title-icon {
+  width: 40px;
+  height: 40px;
+  background: var(--color-accent-light);
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-accent);
+}
+
+.modal-title {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.modal-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.modal-close-btn:hover {
+  background: var(--color-bg-hover);
+  color: var(--color-text-primary);
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.settings-group-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: var(--space-xs);
+}
+
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-lg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-card);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.setting-row:hover {
+  background: var(--color-bg-hover);
+  border-color: var(--color-border-strong);
+}
+
+.setting-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.setting-title {
+  font-weight: 600;
+  color: var(--color-text-primary);
+  font-size: var(--text-base);
+}
+
+.setting-desc {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+
+/* 历史列表项 */
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.history-item {
+  padding: var(--space-lg);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.history-item:hover {
+  background: var(--color-bg-selected);
+  border-color: var(--color-border-focus);
+}
+
+.history-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-sm);
+}
+
+.history-item-title {
+  font-weight: 600;
+  font-size: var(--text-base);
+  color: var(--color-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-item-snippet {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 4px;
+}
+
+.history-delete-btn {
+  opacity: 0;
+  position: absolute;
+  right: var(--space-lg);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.history-item:hover .history-delete-btn {
+  opacity: 1;
+}
+
+.history-delete-btn:hover {
+  background: var(--color-error-light);
+  color: var(--color-error);
+}
+
+.history-empty-state {
+  text-align: center;
+  padding: var(--space-3xl) 0;
+  color: var(--color-text-muted);
+}

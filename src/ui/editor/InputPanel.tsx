@@ -2,13 +2,15 @@ import { useRef, useState, useCallback } from 'react';
 import { parseDocxToText } from '../../parsers/docxParser';
 import { parseDocToText } from '../../parsers/docParser';
 import { parseTxt } from '../../parsers/txtParser';
+import type { FontMapItem } from '../../core/fontExtractor';
 
 interface Props {
   text: string;
   onTextChange: (text: string) => void;
+  onFontsExtracted?: (fonts: FontMapItem[]) => void;
 }
 
-export default function InputPanel({ text, onTextChange }: Props) {
+export default function InputPanel({ text, onTextChange, onFontsExtracted }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -29,10 +31,18 @@ export default function InputPanel({ text, onTextChange }: Props) {
       let extractedText = '';
       const filenameLower = file.name.toLowerCase();
       if (filenameLower.endsWith('.docx')) {
-        extractedText = await parseDocxToText(file);
+        const result = await parseDocxToText(file);
+        extractedText = result.text;
+        if (onFontsExtracted) {
+          onFontsExtracted(result.fonts);
+        }
       } else if (filenameLower.endsWith('.doc')) {
         extractedText = await parseDocToText(file);
-      } else if (filenameLower.endsWith('.txt') || filenameLower.endsWith('.md') || filenameLower.endsWith('.markdown')) {
+      } else if (
+        filenameLower.endsWith('.txt') ||
+        filenameLower.endsWith('.md') ||
+        filenameLower.endsWith('.markdown')
+      ) {
         extractedText = await parseTxt(file);
       } else {
         setUploadError('仅支持 .docx、.doc、.txt 或 .md 格式的文件');
@@ -53,7 +63,7 @@ export default function InputPanel({ text, onTextChange }: Props) {
       // 清空 input 状态，允许重复上传同一文件
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
-  }, [text, onTextChange]);
+  }, [text, onTextChange, onFontsExtracted]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();

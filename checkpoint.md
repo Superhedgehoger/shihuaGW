@@ -1,26 +1,48 @@
 # 当前完成状态总结（Current Status）
-目前已顺利完成了「VBA 自动排版逻辑前端移植」、「默认公文类型修改（报告）」、「无模板导出错误修复」以及「基于 Playwright 无头浏览器的深度自动化交互 Review 测试」。
-所有新开发的代码均已通过静态类型检查（`npx tsc --noEmit`）与 Vite 生产构建（`npm run build`），并成功同步至 GitHub 仓库。经无头浏览器实机测试，全流程无任何 JS 运行时错误，核心格式化规则与无模板自动回退生成 docx 导出功能 100% 可用。
+目前已顺利完成了 `shihua-doc-formatter` 与 `shihua-doc-formatter-v2.7` 合并工作的第二阶段：**子任务 2（中优先级字体提取、字体诊断与校验迁移及 Store 整合）**。
+
+所有的核心字体提取、段落字体分析和合规性检测逻辑已完美融入主项目，且针对主项目已敲定的“默认公文类型为报告”的核心基调进行了完整适配与保留，避免了 v2.7 的红头文件默认值覆盖。系统在保证原有全离线架构和高可靠运行的前提下，获得了极强的 docx 字体分析与规范合规校验能力。
+
+---
 
 # 已完成内容列表
-1. **默认公文类型调整**：将系统默认初始 docType 从 `红头文件` 变更为 `报告`，完美契合日常高频法定公文场景。
-2. **VBA 排版逻辑前端移植**：
-   - **格式清洗与预处理（Initial / GWStyle 部分）**：实现了半角括号纠正、多余空格清理、序号格式标准化、附表纠正为附件、非规范日期转换规范化。
-   - **文章结构识别（Title1 / Inscribe 部分）**：实现了 5 级标题的深度正则特征推断、主送机关解析、抄送行识别、草稿状态推断以及落款日期的自动提取。
-   - **VBA 核心重排版（GWStyle / Common 部分）**：完成了 5 级标题自动重编号（例如一、（一）、1.、(1)、① 自动顺序重算）、三四级标题末尾加句号、附件列表前置符清理及双空格缩进、落款排版格式化。
-3. **无模板 Word 导出引擎（templateInjector 重构）**：
-   - 彻底修复了当 `/templates/` 路径下缺失 Word 模版时直接抛出 HTTP 404 导致系统无法导出的高风险 bug。
-   - 实现了**无模板从头生成模式**：当 HTTP 请求模版失败时，自动退避至从零使用 JS 构建标准 .docx 的底层 XML 结构。
-   - 完美移植了 VBA 的 `PaperSetup()` 纸张页面属性（A4、页边距：上37mm/下35mm/左28mm/右26mm）、`StyleReset()` 标准字号行距映射（小标宋/黑体/仿宋等，22pt/16pt字号，27pt行距）、以及 `PageNumGW()` 页码格式（宋体14pt，`－ N －` 样式居中，超2页自动显示）。
-4. **自动化无头浏览器 Review 基建**：
-   - 引入 Playwright 依赖，编写了端到端的仿真操作脚本 `review-helper.js`。
-   - 实现了首屏检测、Modal 自动关闭、多缺陷文本填充、一键自动解析排版、格式诊断模式切换、以及防 dialog 阻塞的自动化 docx 导出文件拦截与保存。
-   - 成功捕获并导出了 5 张高保真交互截图与 1 份实机导出的标准 Word 文档，验证了控制台的“零错误零异常”品质。
 
-# 待完成事项（Next Steps）
-1. **模板文件配置（可选，非阻塞）**：当前版本已支持完美的无模板从零构建导出。如果未来有更特殊的红头防伪印章或更复杂的页眉底图需求，管理员只需将设计好的模板 `.docx` 放入 `public/templates/qsh/` 目录下即可，系统会自动识别并从无模板生成平滑切换为模板注入。
-2. **生产环境部署**：将打磨完毕且经过无头浏览器全面 review 验证的纯前端静态包部署至目标服务器。
+## ✅ 子任务 1：高优先级系统设置与历史记录模块迁移及 UI 集成 (已完成)
+1. **配置管理模块迁移**：
+   - 迁移 `src/core/configManager.ts` 提供本地持久化、最近元数据以及配置导出导入的核心 API。
+2. **历史记录模块迁移**：
+   - 迁移 `src/core/history.ts` 实现本地最多 20 条 localStorage 文档历史追踪。
+3. **系统设置与历史面板 UI 深度重构**：
+   - 重构 `src/ui/editor/SettingsModal.tsx` 和 `HistoryPanel.tsx`。
+   - 丢弃了不可用的 Tailwind 类名，100% 优雅改写为原生 Vanilla CSS 并追加于全局 `src/index.css`，使用主项目的 CSS 变量系统，适配了磨砂玻璃（backdrop-filter）和顺滑的 Switch 开关物理反馈。
+4. **EditorPage / AppHeader 顶栏整合**：
+   - 顶栏无缝嵌入 🕒 历史 和 ⚙️ 设置 按钮，事件解耦交互，在主页面挂载并支持一键恢复全部字段及模板状态。
 
-# 关键设计决策与未决问题
-- **双轨导出自适应设计**：在 `templateInjector.ts` 中设计了极其鲁棒的自适应逻辑：当服务器端模版存在时，优先读取模板并保持母版高级格式；当模板缺失时，自动退退至“从头生成”分支，利用标准 XML 规范重新声明样式与纸张页边距页码，避免由于模板缺失使系统不可用，极大提升了用户容错度。
-- **完全离线运行**：所有文本清洗、VBA 标题重排、Docx 二进制生成均在浏览器沙箱内本地完成，确保公文内容不涉及任何网络通信，100% 杜绝了机密数据外泄风险，高度满足了石化系统的安全合规规范。
+## ✅ 子任务 2：中优先级字体提取、字体诊断与校验迁移及 Store 整合 (已完成)
+1. **DOCX 字体信息底层解析提取**：
+   - 迁移了 `src/core/fontExtractor.ts`，它能够读取并提取 Word .docx 二进制文件的 XML 底层样式与段落 run 字体映射（eastAsia 中文字体 与 ascii 西文字体）。
+   - 重写了 `src/parsers/docxParser.ts` 的文件解析器，使其不再单纯吐出纯文本，而是以极其精密的 `{ text: string, fonts: FontMapItem[] }` 结构返回文本与对应的段落字体列表。
+2. **前端与 store 状态解耦桥接**：
+   - 扩展了 `src/types/document.ts` 中有关 `BodyBlock`, `DiagnosticIssue` 与 `DocumentState` 的定义，为段落段加上了 `fontInfo` 类型，为格式诊断报告注入了对 `'font'` 类型的支持。
+   - 重构了 `src/ui/editor/InputPanel.tsx` 以接收 `onFontsExtracted` 回调。
+   - 整合了 `src/ui/pages/EditorPage.tsx`，在左侧输入上传时自动调用 `setImportedFonts` 捕获字体并送入 store 中。
+3. **公文规约检测（VBA-like）合规升级**：
+   - 迁移了 `src/core/fontChecker.ts`，建立了以 GBT 9704-2012 法定公文及石化内部规范为核心的**各级段落期望字体合规比对引擎**（如主标题期望方正小标宋、一级标题期望黑体、正文/落款期望仿宋_GB2312 等，并内置别名归一化以支持对宋体、黑体和各类拼音名称的平滑对齐）。
+   - 修改了 `src/core/ruleParser.ts`，在文档结构推断时将 importedFonts 中的段落字体逐个附着到生成的 block 上。
+   - 更新了 `src/core/diagnostics.ts`，在诊断时如果包含 `fontInfo` 将自动触发 `checkBlockFont` 分析，在不合规时记录为 `'font'` 问题并在预览页面精确展现标红提醒。
+   - 更新了 `src/core/validator.ts`，加入了字体合规性校验分支，在检查到字体排版存在问题时，会像 VBA 格式一样自动向用户弹出“发现 X 处字体排版不规范”的警告。
+4. **Store 深度状态治理**：
+   - 重构了 `src/store/useDocumentStore.ts`，引入了 importedFonts 的状态持有。
+   - 强制保留了主版本公认的 `docType: '报告'` 默认字段，阻止了被 v2.7 覆盖。
+   - 在 `processDocument` 核心处理链中，无缝注入了 `checkAllFonts` 字体检查动作并写回结构体；同时，在文档执行格式化动作时，若系统设置中的 `autoSave` 开关处于开启状态，将会**自动且安全地将原始文本与解析元数据一键写入历史记录库**。
+
+---
+
+# 待完成事项 (子任务 3)
+
+## 🟢 子任务 3：低优先级启动脚本迁移、多语言 README 适配及自动化测试验证 (等待用户确认启动)
+1. 合并升级 Windows 启动脚本 `start-windows.bat` 并移入 macOS 脚本 `start-macos.command`。
+2. 视需要合并独立 Word 模板生成器 `src/core/templateGenerator.ts`。
+3. 执行本地 TypeScript 类型验证（`npm run build` 或 `npx tsc --noEmit`），确保合并的各项功能编译 100% 通过。
+4. 运行 Playwright 自动化 Review 测试以确保系统运行稳定性。
+5. 整合项目 README.md 文档并向用户正式汇报合并成果。

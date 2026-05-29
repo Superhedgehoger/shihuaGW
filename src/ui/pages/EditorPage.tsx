@@ -7,6 +7,8 @@ import MetadataForm from '../editor/MetadataForm';
 import PreviewPanel from '../editor/PreviewPanel';
 import DiagnosticsPanel from '../editor/DiagnosticsPanel';
 import ValidationPanel from '../editor/ValidationPanel';
+import HistoryPanel from '../editor/HistoryPanel';
+import SettingsModal from '../editor/SettingsModal';
 import { exportDocx } from '../../core/templateInjector';
 
 import styles from './EditorPage.module.css';
@@ -25,12 +27,28 @@ export default function EditorPage() {
     updateMetadata,
     processDocument,
     updateBlock,
+    setImportedFonts,
   } = useDocumentStore();
 
   const { getActiveTemplate, store: templateStore, setActiveTemplate, getAllTemplates } = useTemplateStore();
   const activeTemplate = getActiveTemplate();
 
   const [isExporting, setIsExporting] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenHistory = () => setIsHistoryOpen(true);
+    const handleOpenSettings = () => setIsSettingsOpen(true);
+    
+    window.addEventListener('open-history', handleOpenHistory);
+    window.addEventListener('open-settings', handleOpenSettings);
+    
+    return () => {
+      window.removeEventListener('open-history', handleOpenHistory);
+      window.removeEventListener('open-settings', handleOpenSettings);
+    };
+  }, []);
 
   const handleExport = useCallback(async () => {
     if (!state.structure) {
@@ -110,7 +128,7 @@ export default function EditorPage() {
 
           {/* 输入区（撑满剩余高度） */}
           <div style={{ flex: 1, padding: 'var(--space-md)', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-            <InputPanel text={state.rawText} onTextChange={setRawText} />
+            <InputPanel text={state.rawText} onTextChange={setRawText} onFontsExtracted={setImportedFonts} />
           </div>
 
           {/* 元数据折叠区 */}
@@ -173,6 +191,22 @@ export default function EditorPage() {
           <ValidationPanel results={state.validationResults} />
         )}
       </main>
+
+      <HistoryPanel 
+        isOpen={isHistoryOpen} 
+        onClose={() => setIsHistoryOpen(false)} 
+        onSelect={(item) => {
+          setDocType(item.docType);
+          setRawText(item.inputText);
+          updateMetadata(item.metadata);
+          setActiveTemplate(item.templateId);
+        }} 
+      />
+      
+      <SettingsModal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)} 
+      />
     </div>
   );
 }

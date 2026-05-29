@@ -1,4 +1,5 @@
 import type { DocumentStructure, BodyBlock, DocType, BlockType } from '../types/document';
+import type { FontMapItem } from './fontExtractor';
 import { normalizeText, normalizeDate } from './preprocessor';
 
 /**
@@ -12,9 +13,10 @@ import { normalizeText, normalizeDate } from './preprocessor';
  *
  * @param rawText 原始文本
  * @param docType 选择的公文类型
+ * @param importedFonts 从文件提取的字体信息数组（可选）
  * @returns 结构化的公文对象
  */
-export function parseDocument(rawText: string, docType: DocType): DocumentStructure {
+export function parseDocument(rawText: string, docType: DocType, importedFonts?: FontMapItem[]): DocumentStructure {
   const cleanedText = normalizeText(rawText);
   const lines = cleanedText.split('\n');
 
@@ -60,6 +62,7 @@ export function parseDocument(rawText: string, docType: DocType): DocumentStruct
         type,
         text: line,
         flagged: isFlagged,
+        fontInfo: importedFonts ? importedFonts[i] : undefined
       });
     }
     return structure;
@@ -198,6 +201,7 @@ export function parseDocument(rawText: string, docType: DocType): DocumentStruct
       type,
       text: line,
       flagged: isFlagged,
+      fontInfo: importedFonts ? importedFonts[i] : undefined
     });
   }
 

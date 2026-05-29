@@ -37,6 +37,24 @@ export function validateStructure(structure: DocumentStructure): ValidationResul
       structure.signoff?.date ? '✔️ 落款日期已识别' : '❌ 缺少落款日期');
   }
 
+  // 3. 字体规范校验（如果含有 fontCompliant 信息）
+  let hasFontIssue = false;
+  let fontIssueCount = 0;
+  for (const block of structure.body) {
+    if ((block as any).fontCompliant === false) {
+      hasFontIssue = true;
+      fontIssueCount += ((block as any).fontIssues?.length || 1);
+    }
+  }
+  
+  // 检查是否具备任何带有字体信息的块（说明已解析了字体）
+  const hasExtractedFonts = structure.body.some(b => b.fontInfo !== undefined);
+  
+  if (hasExtractedFonts) {
+    addResult('font-compliance', !hasFontIssue, 'warning',
+      !hasFontIssue ? '✔️ 字体排版符合规范' : `⚠️ 发现 ${fontIssueCount} 处字体排版不规范`);
+  }
+
   // 工作表单和会议纪要大多需要从 MetadataForm 里面获取，所以会在 UI 层面上搭配 Metadata 表单一起校验
 
   return results;

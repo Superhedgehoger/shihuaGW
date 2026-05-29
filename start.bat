@@ -1,22 +1,36 @@
 @echo off
 chcp 65001 >nul
-echo 🚀 正在启动石化公文排版工具 (Windows 环境)...
+title 石化公文排版工具
+
 echo ==============================================
+echo        石化公文自动排版 Web 工具
+echo ==============================================
+echo.
 
 cd /d "%~dp0"
 
-IF NOT EXIST "node_modules\" (
-    echo 📦 未检测到 node_modules 目录，正在为您自动安装依赖...
-    call npm install
-    if %errorlevel% neq 0 (
-        echo ❌ 依赖安装失败，请检查网络或 Node.js 环境。
-        pause
-        exit /b %errorlevel%
-    )
-    echo ✅ 依赖安装完成！
+:: 检查 Node.js 环境
+where node >nul 2>nul
+if %ERRORLEVEL% neq 0 (
+    echo [错误] 未检测到 Node.js 环境！
+    echo 请先前往 https://nodejs.org/ 下载并安装 Node.js 后重试。
+    pause
+    exit /b
 )
 
-echo 🌐 正在启动本地服务器...
-call npm run dev
+:: 检查依赖并安装
+if not exist node_modules (
+    echo [提示] 首次运行，正在自动安装依赖，请稍候...
+    call npm install
+    if %ERRORLEVEL% neq 0 (
+        echo [错误] 依赖安装失败，请检查网络或 Node.js 环境。
+        pause
+        exit /b
+    )
+    echo [提示] 依赖安装完成！
+    echo.
+)
 
-pause
+:: 启动服务并自动在浏览器中打开
+echo [提示] 正在启动本地服务器...
+call npm run dev -- --open

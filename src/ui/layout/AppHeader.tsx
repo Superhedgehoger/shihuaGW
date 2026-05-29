@@ -43,6 +43,22 @@ export default function AppHeader() {
 
         {/* 右侧信息区 */}
         <div className={styles.statusArea}>
+          <button 
+            className={styles.controlBtn}
+            onClick={() => window.dispatchEvent(new CustomEvent('open-history'))}
+            title="查看历史记录"
+          >
+            <span className={styles.navIcon}>🕒</span>
+            历史
+          </button>
+          <button 
+            className={styles.controlBtn}
+            onClick={() => window.dispatchEvent(new CustomEvent('open-settings'))}
+            title="系统设置"
+          >
+            <span className={styles.navIcon}>⚙️</span>
+            设置
+          </button>
           <span className={styles.offlineBadge}>
             <span className={styles.offlineDot} />
             完全离线

@@ -1,4 +1,5 @@
 import type { DocumentStructure, DiagnosticReport, DiagnosticIssue } from '../types/document';
+import { checkBlockFont } from './fontChecker';
 
 /**
  * 运行格式诊断（对应应用设计的 B 模式：格式诊断）
@@ -64,6 +65,16 @@ export function runDiagnostics(structure: DocumentStructure): DiagnosticReport {
     // 首行缩进探测：文本是否以两个全角空格（\u3000）开头？
     // 由于我们在 preprocessor 里面移除了前面的空白，实际渲染靠 CSS / Word 的 text-indent 属性完成。
     // 如果用户手动打了4个空格或者全角空格被清理了，这里并不作为错误，但如果想严格要求可以进一步判断原始文本。
+
+    // 字体检测
+    if (block.fontInfo) {
+      const { compliant, issues: fontIssues } = checkBlockFont(block.type, block.fontInfo);
+      if (!compliant) {
+        fontIssues.forEach((issue) => {
+          addIssue('font', 'error', issue.message, block.text.substring(0, 15) + '...');
+        });
+      }
+    }
   });
 
   return {

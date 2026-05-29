@@ -4,6 +4,10 @@ import { parseDocument } from '../core/ruleParser';
 import { applyVbaFormatting } from '../core/vbaFormatter';
 import { runDiagnostics } from '../core/diagnostics';
 import { validateStructure } from '../core/validator';
+import { addToHistory } from '../core/history';
+import { getSetting } from '../core/configManager';
+import { checkAllFonts } from '../core/fontChecker';
+import type { FontMapItem } from '../core/fontExtractor';
 
 const INITIAL_METADATA: MetadataForm = {
   fileNumber: '', salutation: '', signoffOrg: '', signoffDate: '', cc: '',
@@ -18,7 +22,7 @@ const INITIAL_METADATA: MetadataForm = {
 export function useDocumentStore() {
   const [state, setState] = useState<DocumentState>({
     rawText: '',
-    docType: '报告',
+    docType: '报告', // 注意：必须保留为 '报告' 默认值以保持主版本的一致性特征
     processMode: 'full',
     structure: null,
     metadata: INITIAL_METADATA,
@@ -27,6 +31,8 @@ export function useDocumentStore() {
     isProcessing: false,
     activeTemplate: null,
   });
+
+  const [importedFonts, setImportedFonts] = useState<FontMapItem[]>([]);
 
   // NOTE: 用 ref 存储最新 state，让 processDocument 始终访问最新值，
   // 同时 useCallback 不需要依赖 state，避免快捷键 useEffect 频繁重建
@@ -59,9 +65,9 @@ export function useDocumentStore() {
 
     setState(prev => ({ ...prev, isProcessing: true }));
     try {
-      // 1. 结构解析
-      const rawStructure = parseDocument(rawText, docType);
-
+      // 1. 结构解析 (传入 importedFonts)
+      const rawStructure = parseDocument(rawText, docType, importedFonts);
+      
       // 2. 应用 VBA 等效排版规则（自动重编号、标题规范化、附件整理等）
       const structure = applyVbaFormatting(rawStructure);
       
@@ -82,6 +88,10 @@ export function useDocumentStore() {
       // 4. 运行诊断与校验
       const diagnosticReport = runDiagnostics(structure);
       const validationResults = validateStructure(structure);
+      
+      // 5. 运行字体检查
+      const fontReport = checkAllFonts(structure.body);
+      structure.body = fontReport.blocks; // 写回带有检查结果的块
 
       setState(prev => ({
         ...prev,
@@ -89,13 +99,25 @@ export function useDocumentStore() {
         metadata: newMetadata,
         diagnosticReport,
         validationResults,
+        fontReport,
         isProcessing: false,
       }));
+
+      // 如果开启了自动保存，则存入历史记录
+      if (getSetting('autoSave', true)) {
+        addToHistory({
+          inputText: rawText,
+          docType,
+          templateId: stateRef.current.activeTemplate?.id || 'default',
+          metadata: newMetadata,
+          title: structure.title || rawText.substring(0, 30),
+        });
+      }
     } catch (error) {
       console.error('文档解析失败', error);
       setState(prev => ({ ...prev, isProcessing: false }));
     }
-  }, []); // NOTE: 无依赖，引用始终稳定
+  }, [importedFonts]); // 依赖于 importedFonts
 
   /** 编辑某一段落块内容，并重新进行校验 */
   const updateBlock = useCallback((id: string, newText: string) => {
@@ -107,12 +129,15 @@ export function useDocumentStore() {
       );
       
       const newStructure = { ...prev.structure, body: newBody };
+      const newFontReport = checkAllFonts(newBody);
+      newStructure.body = newFontReport.blocks;
       
       return {
         ...prev,
         structure: newStructure,
         diagnosticReport: runDiagnostics(newStructure),
-        validationResults: validateStructure(newStructure)
+        validationResults: validateStructure(newStructure),
+        fontReport: newFontReport
       };
     });
   }, []);
@@ -125,5 +150,6 @@ export function useDocumentStore() {
     updateMetadata,
     processDocument,
     updateBlock,
+    setImportedFonts,
   };
 }

@@ -57,9 +57,11 @@ export interface BodyBlock {
   text: string;
   /** 规则引擎不确定时为 true，建议用户核查（显示黄色背景） */
   flagged?: boolean;
+  /** 提取的字体信息 */
+  fontInfo?: import('../core/fontExtractor').FontInfo;
 }
 
-/** 识别出的完整文档结构 */
+/** 识别出的完整文档 structure */
 export interface DocumentStructure {
   /** 公文类型 */
   docType: DocType;
@@ -112,7 +114,7 @@ export interface MetadataForm {
 
 /** 格式诊断问题条目 */
 export interface DiagnosticIssue {
-  type: 'punctuation' | 'numbering' | 'indent' | 'structure';
+  type: 'punctuation' | 'numbering' | 'indent' | 'structure' | 'font';
   level: 'error' | 'warning' | 'info';
   message: string;
   examples?: string[];
@@ -144,4 +146,6 @@ export interface DocumentState {
   validationResults: ValidationResult[];
   isProcessing: boolean;
   activeTemplate: TemplateConfig | null;
+  /** 新增：字体合规检测报告 */
+  fontReport?: import('../core/fontChecker').FontReport | null;
 }
