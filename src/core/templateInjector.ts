@@ -509,11 +509,8 @@ function buildDocxFromScratch(
     zip.file('word/footer1.xml', encoder.encode(buildFooterXml()), { binary: true });
   }
 
-  return zip.generate({
-    type: 'blob',
-    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    compression: 'DEFLATE',
-  });
+  const content = zip.generate({ type: 'uint8array', compression: 'DEFLATE' });
+  return new Blob([content as any], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 }
 
 // ============================================================================
@@ -683,11 +680,8 @@ async function injectIntoTemplate(
   const encoder = new TextEncoder();
   zip.file('word/document.xml', encoder.encode(modifiedXml), { binary: true });
 
-  return zip.generate({
-    type: 'blob',
-    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    compression: 'DEFLATE',
-  });
+  const content = zip.generate({ type: 'uint8array', compression: 'DEFLATE' });
+  return new Blob([content as any], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 }
 
 // 兼容性导出（templateConfig 参数可能在旧调用中不传）
