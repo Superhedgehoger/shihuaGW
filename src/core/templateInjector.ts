@@ -576,9 +576,10 @@ async function injectIntoTemplate(
   const arrayBuffer = await response.arrayBuffer();
   const zip = new PizZip(arrayBuffer);
 
-  const docXmlString = zip.file('word/document.xml')?.asText();
+  const docXmlBytes = zip.file('word/document.xml')?.asUint8Array();
+  const docXmlString = docXmlBytes ? new TextDecoder('utf-8').decode(docXmlBytes) : '';
   if (!docXmlString) {
-    throw new Error('Word 模板似乎已损坏，未找到 word/document.xml');
+    throw new Error('Word 模板似乎已损坏或为空，未找到 word/document.xml');
   }
 
   const parser = new DOMParser();
