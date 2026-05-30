@@ -5,7 +5,7 @@ import { applyVbaFormatting } from '../core/vbaFormatter';
 import { runDiagnostics } from '../core/diagnostics';
 import { validateStructure } from '../core/validator';
 import { addToHistory } from '../core/history';
-import { getSetting } from '../core/configManager';
+import { getSetting, addRecentMetadata } from '../core/configManager';
 import { checkAllFonts } from '../core/fontChecker';
 import type { FontMapItem } from '../core/fontExtractor';
 
@@ -114,6 +114,8 @@ export function useDocumentStore() {
           metadata: newMetadata,
           title: structure.title || rawText.substring(0, 30),
         });
+        // NOTE: 同时将当前元数据写入最近元数据库，供配置导出使用
+        addRecentMetadata(newMetadata);
       }
     } catch (error) {
       console.error('文档解析失败', error);

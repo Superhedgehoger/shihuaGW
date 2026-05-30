@@ -7,8 +7,10 @@ interface SettingsModalProps {
   onClose: () => void;
   /** 用于配置导出的用户自定义模板 */
   userTemplates?: Record<string, TemplateConfig>;
-  /** 导入配置文件后回调，将新导入的模板合并到模板仓库 */
-  onImportTemplates?: (templates: Record<string, TemplateConfig>) => void;
+  /**
+   * 导入配置文件后回调，返回实际导入结果（模板导入数量和错误列表）
+   */
+  onImportTemplates?: (templates: Record<string, TemplateConfig>) => { imported: number; errors: string[] };
 }
 
 export default function SettingsModal({ isOpen, onClose, userTemplates = {}, onImportTemplates }: SettingsModalProps) {
@@ -48,15 +50,29 @@ export default function SettingsModal({ isOpen, onClose, userTemplates = {}, onI
       });
       // 同步导入的设置到本地状态
       setLocalSettings(getSettings());
-      // 将导入的模板通知父组件
+
+      // 将导入的模板交给父组件并得到实际导入结果
+      let actualTemplateCount = 0;
+      let templateErrors: string[] = [];
       if (result.templates && onImportTemplates) {
-        onImportTemplates(result.templates);
+        const mergeResult = onImportTemplates(result.templates);
+        // NOTE: onImportTemplates 现在返回实际合并结果，而非配置文件记录的模板数
+        if (mergeResult) {
+          actualTemplateCount = mergeResult.imported;
+          templateErrors = mergeResult.errors;
+        }
       }
+
       const parts: string[] = [];
-      if (result.templates) parts.push(`模板 ${Object.keys(result.templates).length} 个`);
+      if (result.templates) parts.push(`模板 ${actualTemplateCount} 个`);
       if (result.metadata > 0) parts.push(`元数据 ${result.metadata} 条`);
       if (result.settings > 0) parts.push(`设置项 ${result.settings} 项`);
-      setImportStatus(`✔️ 导入成功：${parts.join('、')}`);
+
+      let statusMsg = `✔️ 导入成功：${parts.join('、')}`;
+      if (templateErrors.length > 0) {
+        statusMsg += `\n⚠️ 跳过 ${templateErrors.length} 个无效模板：${templateErrors.join('；')}`;
+      }
+      setImportStatus(statusMsg);
     } catch (err: any) {
       setImportStatus(`❌ 导入失败：${err.message}`);
     } finally {

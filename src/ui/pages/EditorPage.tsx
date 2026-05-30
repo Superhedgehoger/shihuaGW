@@ -208,9 +208,9 @@ export default function EditorPage() {
         onClose={() => setIsSettingsOpen(false)}
         userTemplates={templateStore.user}
         onImportTemplates={(templates) => {
-          // NOTE: importUserTemplates 会将模板合并进 user 区，避免 ID 冲突
+          // NOTE: importUserTemplates 返回实际导入数量和错误列表，回传给 SettingsModal 显示精确反馈
           const json = JSON.stringify({ version: 1, user: templates });
-          importUserTemplates(json);
+          return importUserTemplates(json);
         }}
       />
     </div>

@@ -653,9 +653,34 @@ async function injectIntoTemplate(
     }
   }
 
-  // ── 生成段落节点（使用 PARA_STYLES 而非硬编码 GW_* 样式名） ──
+  // ── 生成段落节点（使用 TemplateConfig 动态样式而非静态 PARA_STYLES） ──
+  // NOTE: 确保有 Word 模板文件时注入的样式也与用户配置一致
   const createParagraph = (text: string, styleKey: string): Element => {
-    const s = PARA_STYLES[styleKey] ?? PARA_STYLES['body'];
+    const rightIndentMap: Record<string, number> = {
+      signoffOrg: CHAR_TO_TWIP * 4,
+      signoffDate: CHAR_TO_TWIP * 5,
+    };
+    const s = elementStyleToWordStyle(
+      (() => {
+        const styles = templateConfig.styles;
+        const styleMap: Record<string, import('../types/template').ElementStyle> = {
+          title: styles.title,
+          salutation: styles.salutation,
+          h1: styles.heading1,
+          h2: styles.heading2,
+          h3: styles.heading3,
+          h4: styles.heading4,
+          h5: styles.heading5,
+          body: styles.body,
+          signoffOrg: styles.signoffOrg,
+          signoffDate: styles.signoffDate,
+          attachment: styles.attachment,
+        };
+        return styleMap[styleKey] ?? styles.body;
+      })(),
+      rightIndentMap[styleKey]
+    );
+
     const escaped = text
       .replace(/[^\x09\x0A\x0D\x20-\uD7FF\uE000-\uFFFD\u10000-\u10FFFF]/g, '')
       .replace(/&/g, '&amp;')
@@ -670,6 +695,7 @@ async function injectIntoTemplate(
           <w:ind w:firstLine="${s.indentFirstTwip}" w:right="${s.indentRightTwip ?? 0}"/>
           <w:rPr>
             <w:rFonts w:ascii="${s.fontEn}" w:hAnsi="${s.fontEn}" w:eastAsia="${s.fontCn}"/>
+            ${s.bold ? '<w:b/>' : ''}
             <w:sz w:val="${s.halfPt}"/>
             <w:szCs w:val="${s.halfPt}"/>
           </w:rPr>
@@ -677,6 +703,7 @@ async function injectIntoTemplate(
         <w:r>
           <w:rPr>
             <w:rFonts w:ascii="${s.fontEn}" w:hAnsi="${s.fontEn}" w:eastAsia="${s.fontCn}"/>
+            ${s.bold ? '<w:b/>' : ''}
             <w:sz w:val="${s.halfPt}"/>
             <w:szCs w:val="${s.halfPt}"/>
           </w:rPr>
