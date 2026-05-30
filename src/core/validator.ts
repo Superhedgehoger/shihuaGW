@@ -1,5 +1,6 @@
 import type { DocumentStructure, ValidationResult } from '../types/document';
 import type { FontReport } from './fontChecker';
+import { getStrictDocTypes } from './rulesEngine';
 
 /**
  * 规范校验引擎
@@ -11,7 +12,8 @@ import type { FontReport } from './fontChecker';
  */
 export function validateStructure(
   structure: DocumentStructure,
-  fontReport?: FontReport | null
+  fontReport?: FontReport | null,
+  rulesPreset: string = 'qsh'
 ): ValidationResult[] {
   const results: ValidationResult[] = [];
 
@@ -32,7 +34,7 @@ export function validateStructure(
 
   // ── 2. 结构必填项校验：扩展到所有严格公文类型 ──
   // NOTE: 主送机关为 warning（部分公文确实可不填），落款日期/机关为 error（法定必需）
-  const strictDocTypes = ['红头文件', '报告', '请示', '通知', '函', '批复', '决定', '通报', '意见'];
+  const strictDocTypes = getStrictDocTypes(rulesPreset);
   if (strictDocTypes.includes(structure.docType)) {
     addResult('has-salutation', !!structure.salutation, 'warning',
       structure.salutation ? '✔️ 主送机关已识别' : `⚠️ 未识别到主送机关（${structure.docType}通常需要）`);

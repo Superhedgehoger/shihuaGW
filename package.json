@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",
@@ -14,7 +15,8 @@
     "@vitejs/plugin-react": "^6.0.1",
     "playwright": "^1.60.0",
     "typescript": "~6.0.2",
-    "vite": "^8.0.4"
+    "vite": "^8.0.4",
+    "vitest": "^4.1.7"
   },
   "dependencies": {
     "cfb": "^1.2.2",

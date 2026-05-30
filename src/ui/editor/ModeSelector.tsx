@@ -9,6 +9,7 @@ interface Props {
   activeTemplateId: string;
   onTemplateChange: (id: string) => void;
   templates: TemplateConfig[]; // 动态同步的可用模板列表
+  onOpenTemplateMarket: () => void;
 }
 
 /**
@@ -44,7 +45,8 @@ export default function ModeSelector({
   onDocTypeChange,
   activeTemplateId,
   onTemplateChange,
-  templates
+  templates,
+  onOpenTemplateMarket
 }: Props) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-md)' }}>
@@ -65,6 +67,14 @@ export default function ModeSelector({
               <option key={tmpl.id} value={tmpl.id}>{tmpl.name}</option>
             ))}
           </select>
+          <button 
+            className="btn btn-ghost" 
+            style={{ padding: '4px 8px', fontSize: 'var(--text-xs)' }}
+            onClick={onOpenTemplateMarket}
+            title="管理模板与上传"
+          >
+            ⚙️
+          </button>
         </div>
 
         {/* 公文类型选项（去分组） */}

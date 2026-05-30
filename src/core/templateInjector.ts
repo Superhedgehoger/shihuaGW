@@ -587,6 +587,23 @@ export async function exportDocx(
   metadata: MetadataForm,
   templateConfig: TemplateConfig
 ): Promise<Blob> {
+  // ── 尝试加载自定义上传模板 ──
+  if (templateConfig.base64Docx) {
+    try {
+      const base64Data = templateConfig.base64Docx.includes(',') 
+        ? templateConfig.base64Docx.split(',')[1] 
+        : templateConfig.base64Docx;
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return await injectIntoTemplateBuffer(bytes.buffer, structure, metadata, templateConfig);
+    } catch (error) {
+      console.warn(`[exportDocx] 自定义模板解析失败，将回退:`, error);
+    }
+  }
+
   // ── 尝试加载预置 Word 模板 ──
   const preset = templateConfig.wordTemplatePreset === 'none' ? 'gb' : templateConfig.wordTemplatePreset;
   const tplUrl = `/templates/${preset}/${structure.docType}.docx`;
@@ -594,8 +611,9 @@ export async function exportDocx(
   try {
     const response = await fetch(tplUrl);
     if (response.ok) {
+      const arrayBuffer = await response.arrayBuffer();
       // 模板文件存在：走注入路径（Hybrid Template Injection）
-      return await injectIntoTemplate(response, structure, metadata, templateConfig);
+      return await injectIntoTemplateBuffer(arrayBuffer, structure, metadata, templateConfig);
     }
     // HTTP 错误（404 等）→ fallback
     console.info(`[exportDocx] 模板文件未找到 (${tplUrl})，已自动切换为从头生成模式。`);
@@ -618,13 +636,12 @@ export async function exportDocx(
  * NOTE：页脚/页眉文件（footer*.xml、header*.xml）一律原样保留，
  * 不做任何修改，以避免页码域代码格式被破坏（VBA 版本中 — N — 变成 （N）N（N） 的 bug 根因）。
  */
-async function injectIntoTemplate(
-  response: Response,
+async function injectIntoTemplateBuffer(
+  arrayBuffer: ArrayBuffer,
   structure: DocumentStructure,
   _metadata: MetadataForm,
   templateConfig: TemplateConfig
 ): Promise<Blob> {
-  const arrayBuffer = await response.arrayBuffer();
   const zip = new PizZip(arrayBuffer);
 
   const docXmlBytes = zip.file('word/document.xml')?.asUint8Array();

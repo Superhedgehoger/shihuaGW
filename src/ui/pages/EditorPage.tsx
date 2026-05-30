@@ -9,6 +9,8 @@ import DiagnosticsPanel from '../editor/DiagnosticsPanel';
 import ValidationPanel from '../editor/ValidationPanel';
 import HistoryPanel from '../editor/HistoryPanel';
 import SettingsModal from '../editor/SettingsModal';
+import TemplateMarketModal from '../editor/TemplateMarketModal';
+import PrintPreviewModal from '../editor/PrintPreviewModal';
 import { exportDocx } from '../../core/templateInjector';
 
 import styles from './EditorPage.module.css';
@@ -36,6 +38,8 @@ export default function EditorPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isTemplateMarketOpen, setIsTemplateMarketOpen] = useState(false);
+  const [isPrintPreviewOpen, setIsPrintPreviewOpen] = useState(false);
 
   useEffect(() => {
     const handleOpenHistory = () => setIsHistoryOpen(true);
@@ -93,7 +97,8 @@ export default function EditorPage() {
       if (e.key === 'Enter') {
         e.preventDefault();
         if (!state.isProcessing && state.rawText.trim()) {
-          processDocument(activeTemplate.id);
+          const rulesPreset = activeTemplate.rulesStandard || activeTemplate.wordTemplatePreset || 'qsh';
+          processDocument(activeTemplate.id, rulesPreset);
         }
       } else if (e.key === 's') {
         e.preventDefault();
@@ -123,6 +128,7 @@ export default function EditorPage() {
               activeTemplateId={templateStore.activeTemplateId}
               onTemplateChange={setActiveTemplate}
               templates={getAllTemplates()}
+              onOpenTemplateMarket={() => setIsTemplateMarketOpen(true)}
             />
           </div>
 
@@ -141,7 +147,10 @@ export default function EditorPage() {
             <button
               className="btn btn-primary"
               style={{ flex: 1 }}
-              onClick={() => processDocument(activeTemplate.id)}
+              onClick={() => {
+                const rulesPreset = activeTemplate.rulesStandard || activeTemplate.wordTemplatePreset || 'qsh';
+                processDocument(activeTemplate.id, rulesPreset);
+              }}
               disabled={state.isProcessing || !state.rawText.trim()}
               title="Ctrl+Enter"
             >
@@ -154,6 +163,14 @@ export default function EditorPage() {
               onClick={handleExport}
             >
               {isExporting ? '⏳ 生成中...' : '📥 导出'}
+            </button>
+            <button
+              className="btn btn-ghost"
+              disabled={!canExport}
+              onClick={() => setIsPrintPreviewOpen(true)}
+              title="浏览器打印预览"
+            >
+              🖨️ 打印预览
             </button>
           </div>
         </div>
@@ -180,7 +197,10 @@ export default function EditorPage() {
               <PreviewPanel
                 structure={state.structure}
                 template={activeTemplate}
-                onBlockEdit={updateBlock}
+                onBlockEdit={(id, newText) => {
+                  const rulesPreset = activeTemplate.rulesStandard || activeTemplate.wordTemplatePreset || 'qsh';
+                  updateBlock(id, newText, rulesPreset);
+                }}
               />
             )}
           </div>
@@ -212,6 +232,16 @@ export default function EditorPage() {
           const json = JSON.stringify({ version: 1, user: templates });
           return importUserTemplates(json);
         }}
+      />
+      <TemplateMarketModal 
+        isOpen={isTemplateMarketOpen} 
+        onClose={() => setIsTemplateMarketOpen(false)} 
+      />
+      <PrintPreviewModal
+        isOpen={isPrintPreviewOpen}
+        onClose={() => setIsPrintPreviewOpen(false)}
+        structure={state.structure}
+        template={activeTemplate}
       />
     </div>
   );

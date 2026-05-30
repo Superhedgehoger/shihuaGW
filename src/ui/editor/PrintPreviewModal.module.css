@@ -1,0 +1,79 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--color-bg-subtle, #f3f4f6);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.toolbar {
+  height: 60px;
+  background-color: var(--color-bg, #ffffff);
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-xl);
+  box-shadow: var(--shadow-sm);
+  z-index: 10;
+}
+
+.toolbarLeft, .toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.printContainer {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-2xl);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.a4Page {
+  background-color: white;
+  width: 210mm;
+  min-height: 297mm;
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  box-sizing: border-box;
+}
+
+/* 打印特定的 CSS */
+@media print {
+  :global(body.print-mode > *:not([class*="overlay"])) {
+    display: none !important;
+  }
+  
+  .toolbar {
+    display: none !important;
+  }
+
+  .printContainer {
+    padding: 0 !important;
+    overflow: visible !important;
+    display: block !important;
+  }
+
+  .a4Page {
+    box-shadow: none !important;
+    width: 210mm !important;
+    height: auto !important;
+    min-height: 297mm !important;
+    margin: 0 !important;
+    page-break-after: always;
+  }
+
+  @page {
+    size: A4;
+    margin: 0;
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "standard": "GB/T 9704-2012",
+  "name": "党政机关通用公文国家标准",
+  "headingPatterns": {
+    "h1": "^[一二三四五六七八九十百]+、",
+    "h2_full": "^（[一二三四五六七八九十百]+）",
+    "h2_half": "^\\([一二三四五六七八九十百]+\\)",
+    "h3_dot": "^\\d+[.．]",
+    "h3_dun": "^\\d+、",
+    "h4_full": "^（\\d+）",
+    "h4_half": "^\\(\\d+\\)",
+    "h5": "^[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳]"
+  },
+  "salutation": {
+    "maxLength": 40,
+    "endsWith": ["：", ":"],
+    "excludePatterns": ["^[一二三四五六七八九十]、", "^（[一二三四五六七八九十]）"]
+  },
+  "signoff": {
+    "datePattern": "^(\\d{4})[年.\\-](\\d{1,2})[月.\\-](\\d{1,2})日?$",
+    "scanLastLines": 6,
+    "orgMaxLength": 30,
+    "orgExcludeEnds": ["。", "！", "？", "；"],
+    "orgExcludeStarts": ["^[一二三四五六七八九十]、", "^（[一二三四五六七八九十]）"]
+  },
+  "attachment": {
+    "pattern": "^附件[：:]"
+  },
+  "cc": {
+    "pattern": "^(抄送|抄报)[：:]"
+  },
+  "strictDocTypes": ["红头文件", "报告", "请示", "通知", "函", "批复", "决定", "通报", "意见"],
+  "expectedFonts": {
+    "title":       { "eastAsia": "方正小标宋简体", "ascii": "Times New Roman" },
+    "h1":          { "eastAsia": "黑体",          "ascii": "Times New Roman" },
+    "h2":          { "eastAsia": "楷体_GB2312",   "ascii": "Times New Roman" },
+    "h3":          { "eastAsia": "仿宋_GB2312",   "ascii": "Times New Roman" },
+    "h4":          { "eastAsia": "仿宋_GB2312",   "ascii": "Times New Roman" },
+    "h5":          { "eastAsia": "仿宋_GB2312",   "ascii": "Times New Roman" },
+    "body":        { "eastAsia": "仿宋_GB2312",   "ascii": "Times New Roman" },
+    "salutation":  { "eastAsia": "仿宋_GB2312",   "ascii": "Times New Roman" },
+    "signoffOrg":  { "eastAsia": "仿宋_GB2312",   "ascii": "Times New Roman" },
+    "signoffDate": { "eastAsia": "仿宋_GB2312",   "ascii": "Times New Roman" },
+    "attachment":  { "eastAsia": "仿宋_GB2312",   "ascii": "Times New Roman" }
+  }
+}

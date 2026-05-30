@@ -1,5 +1,6 @@
 import type { DocumentStructure, DiagnosticReport, DiagnosticIssue } from '../types/document';
 import { checkBlockFont } from './fontChecker';
+import { getStrictDocTypes } from './rulesEngine';
 
 /**
  * 运行格式诊断（对应应用设计的 B 模式：格式诊断）
@@ -8,7 +9,7 @@ import { checkBlockFont } from './fontChecker';
  * @param structure 识别出的公文结构
  * @returns 诊断报告
  */
-export function runDiagnostics(structure: DocumentStructure): DiagnosticReport {
+export function runDiagnostics(structure: DocumentStructure, rulesPreset: string = 'qsh'): DiagnosticReport {
   const issues: DiagnosticIssue[] = [];
 
   const addIssue = (type: DiagnosticIssue['type'], level: DiagnosticIssue['level'], message: string, example?: string) => {
@@ -32,7 +33,7 @@ export function runDiagnostics(structure: DocumentStructure): DiagnosticReport {
     addIssue('structure', 'error', '未识别到文档标题。请确保第一行不为空。');
   }
 
-  const strictDocTypes = ['红头文件', '报告', '请示', '通知', '函', '批复', '决定', '通报', '意见'];
+  const strictDocTypes = getStrictDocTypes(rulesPreset);
   if (strictDocTypes.includes(structure.docType)) {
     if (!structure.salutation) {
       addIssue('structure', 'warning', `${structure.docType}通常需要主送机关，未识别到。请确保其位于标题下方顶格，并以冒号结尾。`);
@@ -48,19 +49,19 @@ export function runDiagnostics(structure: DocumentStructure): DiagnosticReport {
   // 字体检测 (结构化字段)
   if (structure.fontInfos) {
     if (structure.fontInfos.title) {
-      const { compliant, issues: fontIssues } = checkBlockFont('title', structure.fontInfos.title);
+      const { compliant, issues: fontIssues } = checkBlockFont('title', structure.fontInfos.title, rulesPreset);
       if (!compliant) fontIssues.forEach(i => addIssue('font', 'error', i.message, structure.title.substring(0, 15) + '...'));
     }
     if (structure.fontInfos.salutation && structure.salutation) {
-      const { compliant, issues: fontIssues } = checkBlockFont('salutation', structure.fontInfos.salutation);
+      const { compliant, issues: fontIssues } = checkBlockFont('salutation', structure.fontInfos.salutation, rulesPreset);
       if (!compliant) fontIssues.forEach(i => addIssue('font', 'error', i.message, structure.salutation!.substring(0, 15) + '...'));
     }
     if (structure.fontInfos.signoffOrg && structure.signoff?.organization) {
-      const { compliant, issues: fontIssues } = checkBlockFont('signoffOrg', structure.fontInfos.signoffOrg);
+      const { compliant, issues: fontIssues } = checkBlockFont('signoffOrg', structure.fontInfos.signoffOrg, rulesPreset);
       if (!compliant) fontIssues.forEach(i => addIssue('font', 'error', i.message, structure.signoff!.organization.substring(0, 15) + '...'));
     }
     if (structure.fontInfos.signoffDate && structure.signoff?.date) {
-      const { compliant, issues: fontIssues } = checkBlockFont('signoffDate', structure.fontInfos.signoffDate);
+      const { compliant, issues: fontIssues } = checkBlockFont('signoffDate', structure.fontInfos.signoffDate, rulesPreset);
       if (!compliant) fontIssues.forEach(i => addIssue('font', 'error', i.message, structure.signoff!.date.substring(0, 15) + '...'));
     }
   }
@@ -89,7 +90,7 @@ export function runDiagnostics(structure: DocumentStructure): DiagnosticReport {
 
     // 字体检测
     if (block.fontInfo) {
-      const { compliant, issues: fontIssues } = checkBlockFont(block.type, block.fontInfo);
+      const { compliant, issues: fontIssues } = checkBlockFont(block.type, block.fontInfo, rulesPreset);
       if (!compliant) {
         fontIssues.forEach((issue) => {
           addIssue('font', 'error', issue.message, block.text.substring(0, 15) + '...');

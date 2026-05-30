@@ -38,6 +38,10 @@ export interface TemplateConfig {
   isBuiltin: boolean;
   /** 关联的 Word 模板标准（影响导出时使用哪组 .docx 模板文件） */
   wordTemplatePreset: 'qsh' | 'gb' | 'none';
+  /** 绑定的公文规则标准（影响标题识别、必填项校验等，默认同 wordTemplatePreset） */
+  rulesStandard?: string;
+  /** 自定义上传的 Word 模板文件（Base64 编码，用于完全替换默认模板的导出结构） */
+  base64Docx?: string;
   /** 页面边距 */
   page: PageMargin;
   /** 各段落元素样式 */

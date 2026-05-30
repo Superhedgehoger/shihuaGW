@@ -1,5 +1,6 @@
 import { BlockType, BodyBlock } from '../types/document';
 import type { FontInfo } from './fontExtractor';
+import { loadRules } from './rulesEngine';
 
 /**
  * 字体别名归一化表（统一为 PRD 规范字体名）
@@ -28,8 +29,11 @@ const FONT_ALIASES: Record<string, string> = {
   'timesnewroman':           'Times New Roman',
 };
 
-/** 规范字体映射（段落类型 → 期望字体） */
-export const EXPECTED_FONTS: Partial<Record<BlockType, { eastAsia: string, ascii: string }>> = {
+/**
+ * 规范字体映射（段落类型 → 期望字体）
+ * NOTE: 仅作为默认回退值，实际应通过 loadRules 获取
+ */
+export const EXPECTED_FONTS: Partial<Record<string, { eastAsia: string, ascii: string }>> = {
   title:       { eastAsia: '方正小标宋简体', ascii: 'Times New Roman' },
   h1:          { eastAsia: '黑体',          ascii: 'Times New Roman' },
   h2:          { eastAsia: '楷体_GB2312',   ascii: 'Times New Roman' },
@@ -77,8 +81,14 @@ function normalizeFont(name: string): string {
 /**
  * 检查单个段落的字体合规性
  */
-export function checkBlockFont(blockType: BlockType, actualFont?: FontInfo | null): FontCheckResult {
-  const expected = EXPECTED_FONTS[blockType];
+export function checkBlockFont(blockType: string, actualFont?: FontInfo | null, rulesPreset?: string): FontCheckResult {
+  let expected: { eastAsia: string; ascii: string } | undefined;
+  if (rulesPreset) {
+    const rules = loadRules(rulesPreset);
+    expected = rules.expectedFonts[blockType] as { eastAsia: string; ascii: string } | undefined;
+  } else {
+    expected = EXPECTED_FONTS[blockType];
+  }
   if (!expected || !actualFont) return { compliant: true, issues: [] };
 
   const issues: FontIssue[] = [];
@@ -109,10 +119,10 @@ export function checkBlockFont(blockType: BlockType, actualFont?: FontInfo | nul
 /**
  * 批量检查全文所有 BodyBlock 的字体合规性，以及结构化字段的合规性
  */
-export function checkAllFonts(blocks: BodyBlock[], fontInfos?: import('../types/document').DocumentStructure['fontInfos']): FontReport {
+export function checkAllFonts(blocks: BodyBlock[], fontInfos?: import('../types/document').DocumentStructure['fontInfos'], rulesPreset?: string): FontReport {
   let totalIssues = 0;
   const results = blocks.map(block => {
-    const { compliant, issues } = checkBlockFont(block.type, block.fontInfo);
+    const { compliant, issues } = checkBlockFont(block.type, block.fontInfo, rulesPreset);
     if (!compliant) totalIssues += issues.length;
     return { ...block, fontCompliant: compliant, fontIssues: issues };
   });
@@ -120,28 +130,28 @@ export function checkAllFonts(blocks: BodyBlock[], fontInfos?: import('../types/
   const structureIssues: FontReport['structureIssues'] = {};
   if (fontInfos) {
     if (fontInfos.title) {
-      const res = checkBlockFont('title', fontInfos.title);
+      const res = checkBlockFont('title', fontInfos.title, rulesPreset);
       if (!res.compliant) {
         structureIssues.title = res.issues;
         totalIssues += res.issues.length;
       }
     }
     if (fontInfos.salutation) {
-      const res = checkBlockFont('salutation', fontInfos.salutation);
+      const res = checkBlockFont('salutation', fontInfos.salutation, rulesPreset);
       if (!res.compliant) {
         structureIssues.salutation = res.issues;
         totalIssues += res.issues.length;
       }
     }
     if (fontInfos.signoffOrg) {
-      const res = checkBlockFont('signoffOrg', fontInfos.signoffOrg);
+      const res = checkBlockFont('signoffOrg', fontInfos.signoffOrg, rulesPreset);
       if (!res.compliant) {
         structureIssues.signoffOrg = res.issues;
         totalIssues += res.issues.length;
       }
     }
     if (fontInfos.signoffDate) {
-      const res = checkBlockFont('signoffDate', fontInfos.signoffDate);
+      const res = checkBlockFont('signoffDate', fontInfos.signoffDate, rulesPreset);
       if (!res.compliant) {
         structureIssues.signoffDate = res.issues;
         totalIssues += res.issues.length;

@@ -1,6 +1,7 @@
 import type { DocumentStructure, BodyBlock, DocType, BlockType } from '../types/document';
 import type { FontMapItem } from './fontExtractor';
 import { normalizeText, normalizeDate } from './preprocessor';
+import { loadRules, compilePatterns } from './rulesEngine';
 
 /**
  * 将原始文档通过正则和特征分析转化为结构化对象 DocumentStructure
@@ -14,11 +15,15 @@ import { normalizeText, normalizeDate } from './preprocessor';
  * @param rawText 原始文本
  * @param docType 选择的公文类型
  * @param importedFonts 从文件提取的字体信息数组（可选）
+ * @param rulesPreset 规则包预设（默认 qsh）
  * @returns 结构化的公文对象
  */
-export function parseDocument(rawText: string, docType: DocType, importedFonts?: FontMapItem[]): DocumentStructure {
+export function parseDocument(rawText: string, docType: DocType, importedFonts?: FontMapItem[], rulesPreset: string = 'qsh'): DocumentStructure {
   const cleanedText = normalizeText(rawText);
   const lines = cleanedText.split('\n');
+
+  const rules = loadRules(rulesPreset);
+  const patterns = compilePatterns(rules);
 
   const structure: DocumentStructure = {
     docType,
@@ -43,18 +48,18 @@ export function parseDocument(rawText: string, docType: DocType, importedFonts?:
       let isFlagged = false;
 
       // 依然允许并重整 1-5 级标题，方便排版自动重编号
-      if (isH1(line)) {
+      if (patterns.h1.test(line)) {
         type = 'h1';
-      } else if (isH2(line)) {
+      } else if (patterns.h2Full.test(line) || patterns.h2Half.test(line)) {
         type = 'h2';
         if (/^\([一二三四五六七八九十]+\)/.test(line)) isFlagged = true;
-      } else if (isH3(line)) {
+      } else if (patterns.h3Dot.test(line) || patterns.h3Dun.test(line)) {
         type = 'h3';
         if (/^\d+[、]/.test(line)) isFlagged = true;
-      } else if (isH4(line)) {
+      } else if (patterns.h4Full.test(line) || patterns.h4Half.test(line)) {
         type = 'h4';
         if (/^\(\d+\)/.test(line)) isFlagged = true;
-      } else if (isH5(line)) {
+      } else if (patterns.h5.test(line)) {
         type = 'h5';
       }
 
@@ -90,10 +95,9 @@ export function parseDocument(rawText: string, docType: DocType, importedFonts?:
     const secondLine = lines[startIndex];
     // 主送机关特征：以"："结尾，长度 ≤ 40字，不像正文段落（不以序号开头）
     const isSalutation =
-      (secondLine.endsWith('：') || secondLine.endsWith(':')) &&
-      secondLine.length <= 40 &&
-      !/^[一二三四五六七八九十]、/.test(secondLine) &&
-      !/^（[一二三四五六七八九十]）/.test(secondLine);
+      rules.salutation.endsWith.some(s => secondLine.endsWith(s)) &&
+      secondLine.length <= rules.salutation.maxLength &&
+      !rules.salutation.excludePatterns.some(p => new RegExp(p).test(secondLine));
     if (isSalutation) {
       structure.salutation = secondLine.replace(/:$/, '：'); // 统一为全角冒号
       if (importedFonts && importedFonts[startIndex]) {
@@ -110,8 +114,8 @@ export function parseDocument(rawText: string, docType: DocType, importedFonts?:
   let signoffDateIndex = -1;
 
   const dateRegex = /^(\d{4})[年.-](\d{1,2})[月.-](\d{1,2})日?$/;
-  // 扫描倒数 6 行寻找日期，对应 VBA 落款通常在结尾附近
-  for (let j = lines.length - 1; j >= Math.max(0, lines.length - 6); j--) {
+  // 扫描倒数若干行寻找日期，对应 VBA 落款通常在结尾附近
+  for (let j = lines.length - 1; j >= Math.max(0, lines.length - rules.signoff.scanLastLines); j--) {
     const rawDate = lines[j];
     const normalizedDate = normalizeDate(rawDate);
     const match = normalizedDate.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日$/);
@@ -133,10 +137,9 @@ export function parseDocument(rawText: string, docType: DocType, importedFonts?:
     const potentialOrgLine = lines[signoffDateIndex - 1];
     // 落款机关特征：≤30字，不以常见正文结尾标点结尾，不是序号开头
     const isSignoffOrg =
-      potentialOrgLine.length <= 30 &&
-      !/[。！？；]$/.test(potentialOrgLine) &&
-      !/^[一二三四五六七八九十]、/.test(potentialOrgLine) &&
-      !/^（[一二三四五六七八九十]）/.test(potentialOrgLine);
+      potentialOrgLine.length <= rules.signoff.orgMaxLength &&
+      !rules.signoff.orgExcludeEnds.some(e => potentialOrgLine.endsWith(e)) &&
+      !rules.signoff.orgExcludeStarts.some(p => new RegExp(p).test(potentialOrgLine));
     if (isSignoffOrg) {
       signoffOrgIndex = signoffDateIndex - 1;
       if (!structure.signoff) structure.signoff = { organization: '', date: '' };
@@ -172,27 +175,27 @@ export function parseDocument(rawText: string, docType: DocType, importedFonts?:
     } else {
       // ── 标题层级识别（对应 VBA GWStyle() 的 For Each i In .Paragraphs 循环） ──
 
-      if (isH1(line)) {
+      if (patterns.h1.test(line)) {
         // 一级标题："一、内容" 对应 VBA "一、*" Like 匹配 → wdStyleHeading2
         type = 'h1';
-      } else if (isH2(line)) {
+      } else if (patterns.h2Full.test(line) || patterns.h2Half.test(line)) {
         // 二级标题："（一）内容" 对应 VBA "（一）*" Like 匹配 → wdStyleHeading3
         type = 'h2';
         // 半角括号标记需要修正（对应 VBA 前期的括号统一）
         if (/^\([一二三四五六七八九十]+\)/.test(line)) isFlagged = true;
-      } else if (isH3(line)) {
+      } else if (patterns.h3Dot.test(line) || patterns.h3Dun.test(line)) {
         // 三级标题："1．内容" 对应 VBA "#．*" Like 匹配 → wdStyleHeading4
         type = 'h3';
         // 顿号替代点号是错误格式，需提醒
         if (/^\d+[、]/.test(line)) isFlagged = true;
-      } else if (isH4(line)) {
+      } else if (patterns.h4Full.test(line) || patterns.h4Half.test(line)) {
         // 四级标题："（1）内容" 对应 VBA "（#）*" Like 匹配 → wdStyleHeading5
         type = 'h4';
         if (/^\(\d+\)/.test(line)) isFlagged = true; // 半角括号
-      } else if (isH5(line)) {
+      } else if (patterns.h5.test(line)) {
         // 五级标题：带圈数字 ①②③
         type = 'h5';
-      } else if (isAttachmentLine(line)) {
+      } else if (patterns.attachment.test(line)) {
         // 附件标注："附件：xxx" 对应 VBA 中附件识别 ".Text Like "附件*""
         type = 'attachment';
         inAttachmentSection = true;
@@ -202,7 +205,7 @@ export function parseDocument(rawText: string, docType: DocType, importedFonts?:
         if (!structure.attachments) structure.attachments = [];
         const content = line.replace(/^附件[：:]\s*/, '').trim();
         if (content) structure.attachments.push(content);
-      } else if (isCcLine(line)) {
+      } else if (patterns.cc.test(line)) {
         // 抄送行识别："抄送：xxx" 或 "抄报：xxx"
         if (!structure.cc) structure.cc = [];
         structure.cc.push(line);
@@ -226,6 +229,7 @@ export function parseDocument(rawText: string, docType: DocType, importedFonts?:
 // ============================================================================
 
 /**
+ * @deprecated 请使用 rulesEngine 动态配置代替
  * 一级标题：以中文序号 + 顿号开头（一、二、三、...）
  * 对应 VBA：If .Text Like "一、*"
  */

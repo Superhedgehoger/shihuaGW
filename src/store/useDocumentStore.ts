@@ -59,14 +59,14 @@ export function useDocumentStore() {
    * 触发执行核心处理引擎
    * NOTE: 通过 stateRef 读取最新值，依赖数组为空，确保引用稳定
    */
-  const processDocument = useCallback(async (activeTemplateId: string = 'default') => {
+  const processDocument = useCallback(async (activeTemplateId: string = 'default', rulesPreset: string = 'qsh') => {
     const { rawText, docType, metadata } = stateRef.current;
     if (!rawText.trim()) return;
 
     setState(prev => ({ ...prev, isProcessing: true }));
     try {
       // 1. 结构解析 (传入 importedFonts)
-      const rawStructure = parseDocument(rawText, docType, importedFonts);
+      const rawStructure = parseDocument(rawText, docType, importedFonts, rulesPreset);
       
       // 2. 应用 VBA 等效排版规则（自动重编号、标题规范化、附件整理等）
       const structure = applyVbaFormatting(rawStructure);
@@ -86,14 +86,14 @@ export function useDocumentStore() {
       }
 
       // 4. 运行诊断与校验
-      const diagnosticReport = runDiagnostics(structure);
+      const diagnosticReport = runDiagnostics(structure, rulesPreset);
       
       // 5. 运行字体检查
-      const fontReport = checkAllFonts(structure.body, structure.fontInfos);
+      const fontReport = checkAllFonts(structure.body, structure.fontInfos, rulesPreset);
       structure.body = fontReport.blocks; // 写回带有检查结果的块
 
       // NOTE: validateStructure 在字体检查后执行，确保能拿到完整的 fontReport
-      const validationResults = validateStructure(structure, fontReport);
+      const validationResults = validateStructure(structure, fontReport, rulesPreset);
 
       setState(prev => ({
         ...prev,
@@ -124,7 +124,7 @@ export function useDocumentStore() {
   }, [importedFonts]); // 依赖于 importedFonts
 
   /** 编辑某一段落块内容，并重新进行校验 */
-  const updateBlock = useCallback((id: string, newText: string) => {
+  const updateBlock = useCallback((id: string, newText: string, rulesPreset: string = 'qsh') => {
     setState(prev => {
       if (!prev.structure) return prev;
       
@@ -133,14 +133,14 @@ export function useDocumentStore() {
       );
       
       const newStructure = { ...prev.structure, body: newBody };
-      const newFontReport = checkAllFonts(newBody, newStructure.fontInfos);
+      const newFontReport = checkAllFonts(newBody, newStructure.fontInfos, rulesPreset);
       newStructure.body = newFontReport.blocks;
       
       return {
         ...prev,
         structure: newStructure,
-        diagnosticReport: runDiagnostics(newStructure),
-        validationResults: validateStructure(newStructure, newFontReport),
+        diagnosticReport: runDiagnostics(newStructure, rulesPreset),
+        validationResults: validateStructure(newStructure, newFontReport, rulesPreset),
         fontReport: newFontReport
       };
     });
