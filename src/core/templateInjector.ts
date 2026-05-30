@@ -164,6 +164,32 @@ const PARA_STYLES: Record<string, WordParaStyle> = {
   },
 };
 
+/**
+ * 将 TemplateConfig 中的 ElementStyle 转换为 Word 内部表示的 WordParaStyle
+ * 实现预览与导出 fallback 样式的统一来源
+ *
+ * @param es - TemplateConfig 中的 ElementStyle
+ * @param indentRightTwip - 可选的右缩进（局款专用）
+ */
+function elementStyleToWordStyle(es: import('../types/template').ElementStyle, indentRightTwip?: number): WordParaStyle {
+  const jcMap: Record<string, WordParaStyle['jc']> = {
+    left: 'left',
+    center: 'center',
+    right: 'right',
+    justify: 'both',
+  };
+  return {
+    fontCn: es.fontCn,
+    fontEn: es.fontEn,
+    halfPt: Math.round(es.size * 2),          // pt → 半磅値
+    bold: es.isBold,
+    jc: jcMap[es.align] ?? 'left',
+    lineSpaceTwip: es.lineSpacingPt ? Math.round(es.lineSpacingPt * PT_TO_TWIP) : 540,
+    indentFirstTwip: Math.round(es.indentPt * PT_TO_TWIP),
+    indentRightTwip,
+  };
+}
+
 // ============================================================================
 // 从头构建最小化合规 .docx
 // ============================================================================
@@ -202,9 +228,37 @@ function buildSectPrXml(cfg: TemplateConfig, totalPages: number): string {
 /**
  * 生成单个段落的 OOXML（<w:p>）
  * 对应 VBA GWStyle() 中对每个段落的格式应用
+ *
+ * @param text 段落文本
+ * @param styleKey 段落类型键
+ * @param templateConfig 可选的模板配置（优先使用；不传则回退 PARA_STYLES）
  */
-function buildParagraphXml(text: string, styleKey: string): string {
-  const s = PARA_STYLES[styleKey] ?? PARA_STYLES['body'];
+function buildParagraphXml(text: string, styleKey: string, templateConfig?: TemplateConfig): string {
+  // NOTE: 优先从模板配置动态读取样式，保证预览与导出一致
+  let s: WordParaStyle;
+  if (templateConfig) {
+    const styles = templateConfig.styles;
+    const signoffRightIndent = CHAR_TO_TWIP * 4;
+    const styleMap: Record<string, import('../types/template').ElementStyle | undefined> = {
+      title: styles.title,
+      salutation: styles.salutation,
+      h1: styles.heading1,
+      h2: styles.heading2,
+      h3: styles.heading3,
+      h4: styles.heading4,
+      h5: styles.heading5,
+      body: styles.body,
+      signoffOrg: styles.signoffOrg,
+      signoffDate: styles.signoffDate,
+      attachment: styles.attachment,
+    };
+    const es = styleMap[styleKey] ?? styles.body;
+    const rightIndent = (styleKey === 'signoffOrg') ? signoffRightIndent
+      : (styleKey === 'signoffDate') ? Math.round(CHAR_TO_TWIP * 5) : undefined;
+    s = elementStyleToWordStyle(es, rightIndent);
+  } else {
+    s = PARA_STYLES[styleKey] ?? PARA_STYLES['body'];
+  }
 
   // 行距：固定值（exact）对应 VBA 中 wdLineSpaceExactly
   const lineRule = 'exact';
@@ -436,12 +490,12 @@ function buildDocxFromScratch(
 
   // 主标题
   if (structure.title) {
-    paraXmls.push(buildParagraphXml(structure.title, 'title'));
+    paraXmls.push(buildParagraphXml(structure.title, 'title', templateConfig));
   }
 
   // 主送机关
   if (structure.salutation) {
-    paraXmls.push(buildParagraphXml(structure.salutation, 'salutation'));
+    paraXmls.push(buildParagraphXml(structure.salutation, 'salutation', templateConfig));
   }
 
   // 正文块
@@ -455,16 +509,16 @@ function buildDocxFromScratch(
     else if (block.type === 'attachment') styleKey = 'attachment';
     else if (block.type === 'signoffOrg') styleKey = 'signoffOrg';
     else if (block.type === 'signoffDate') styleKey = 'signoffDate';
-    paraXmls.push(buildParagraphXml(block.text, styleKey));
+    paraXmls.push(buildParagraphXml(block.text, styleKey, templateConfig));
   }
 
   // 落款
   if (structure.signoff) {
     if (structure.signoff.organization) {
-      paraXmls.push(buildParagraphXml(structure.signoff.organization, 'signoffOrg'));
+      paraXmls.push(buildParagraphXml(structure.signoff.organization, 'signoffOrg', templateConfig));
     }
     if (structure.signoff.date) {
-      paraXmls.push(buildParagraphXml(structure.signoff.date, 'signoffDate'));
+      paraXmls.push(buildParagraphXml(structure.signoff.date, 'signoffDate', templateConfig));
     }
   }
 

@@ -30,7 +30,7 @@ export default function EditorPage() {
     setImportedFonts,
   } = useDocumentStore();
 
-  const { getActiveTemplate, store: templateStore, setActiveTemplate, getAllTemplates } = useTemplateStore();
+  const { getActiveTemplate, store: templateStore, setActiveTemplate, getAllTemplates, importUserTemplates } = useTemplateStore();
   const activeTemplate = getActiveTemplate();
 
   const [isExporting, setIsExporting] = useState(false);
@@ -203,9 +203,15 @@ export default function EditorPage() {
         }} 
       />
       
-      <SettingsModal 
-        isOpen={isSettingsOpen} 
-        onClose={() => setIsSettingsOpen(false)} 
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        userTemplates={templateStore.user}
+        onImportTemplates={(templates) => {
+          // NOTE: importUserTemplates 会将模板合并进 user 区，避免 ID 冲突
+          const json = JSON.stringify({ version: 1, user: templates });
+          importUserTemplates(json);
+        }}
       />
     </div>
   );

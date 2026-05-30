@@ -87,11 +87,13 @@ export function useDocumentStore() {
 
       // 4. 运行诊断与校验
       const diagnosticReport = runDiagnostics(structure);
-      const validationResults = validateStructure(structure);
       
       // 5. 运行字体检查
       const fontReport = checkAllFonts(structure.body, structure.fontInfos);
       structure.body = fontReport.blocks; // 写回带有检查结果的块
+
+      // NOTE: validateStructure 在字体检查后执行，确保能拿到完整的 fontReport
+      const validationResults = validateStructure(structure, fontReport);
 
       setState(prev => ({
         ...prev,
@@ -136,7 +138,7 @@ export function useDocumentStore() {
         ...prev,
         structure: newStructure,
         diagnosticReport: runDiagnostics(newStructure),
-        validationResults: validateStructure(newStructure),
+        validationResults: validateStructure(newStructure, newFontReport),
         fontReport: newFontReport
       };
     });

@@ -50,8 +50,10 @@ export default function InputPanel({ text, onTextChange, onFontsExtracted }: Pro
       }
 
       if (extractedText.trim()) {
-        // 追加到已有文本（如果有），或直接覆盖
-        onTextChange(text ? `${text}\n${extractedText}` : extractedText);
+        // NOTE: 上传新文件时强制覆盖现有文本，而非追加。
+        // 追加模式会导致字体数组（fontInfo）的行号与文本行号永久错位，
+        // 因为字体数组始终对应当前文件，而文本可能混合了多个来源。
+        onTextChange(extractedText);
       } else {
         setUploadError('文件内容为空，请检查文件');
       }
@@ -83,14 +85,15 @@ export default function InputPanel({ text, onTextChange, onFontsExtracted }: Pro
       onDrop={handleDrop}
     >
       {/* 工具栏 */}
-      <div style={{ display: 'flex', gap: 'var(--space-sm)', alignItems: 'center', flexShrink: 0 }}>
+      <div style={{ display: 'flex', gap: 'var(--space-sm)', alignItems: 'center', flexShrink: 0, flexWrap: 'wrap' }}>
         <button
           className="btn btn-ghost btn-sm"
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading}
           style={{ flex: 1 }}
+          title="上传文件将替换现有内容，以确保字体信息与文本精准对应"
         >
-          {isUploading ? '⏳ 解析中...' : '📂 上传 .docx / .doc / .txt / .md'}
+          {isUploading ? '⏳ 解析中...' : '📂 上传 .docx / .doc / .txt / .md（覆盖）'}
         </button>
         <input
           type="file"
@@ -107,6 +110,7 @@ export default function InputPanel({ text, onTextChange, onFontsExtracted }: Pro
           清空
         </button>
       </div>
+
 
       {/* 错误提示 */}
       {uploadError && (
