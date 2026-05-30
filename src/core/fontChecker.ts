@@ -59,6 +59,12 @@ export interface FontReport {
   nonCompliantCount: number;
   totalIssues: number;
   blocks: (BodyBlock & { fontCompliant: boolean; fontIssues: FontIssue[] })[];
+  structureIssues: {
+    title?: FontIssue[];
+    salutation?: FontIssue[];
+    signoffOrg?: FontIssue[];
+    signoffDate?: FontIssue[];
+  };
 }
 
 /** 字体名称归一化：lowercase + 去非字母数字字符 → 查别名表 */
@@ -101,9 +107,9 @@ export function checkBlockFont(blockType: BlockType, actualFont?: FontInfo | nul
 }
 
 /**
- * 批量检查全文所有 BodyBlock 的字体合规性
+ * 批量检查全文所有 BodyBlock 的字体合规性，以及结构化字段的合规性
  */
-export function checkAllFonts(blocks: BodyBlock[]): FontReport {
+export function checkAllFonts(blocks: BodyBlock[], fontInfos?: import('../types/document').DocumentStructure['fontInfos']): FontReport {
   let totalIssues = 0;
   const results = blocks.map(block => {
     const { compliant, issues } = checkBlockFont(block.type, block.fontInfo);
@@ -111,10 +117,43 @@ export function checkAllFonts(blocks: BodyBlock[]): FontReport {
     return { ...block, fontCompliant: compliant, fontIssues: issues };
   });
 
+  const structureIssues: FontReport['structureIssues'] = {};
+  if (fontInfos) {
+    if (fontInfos.title) {
+      const res = checkBlockFont('title', fontInfos.title);
+      if (!res.compliant) {
+        structureIssues.title = res.issues;
+        totalIssues += res.issues.length;
+      }
+    }
+    if (fontInfos.salutation) {
+      const res = checkBlockFont('salutation', fontInfos.salutation);
+      if (!res.compliant) {
+        structureIssues.salutation = res.issues;
+        totalIssues += res.issues.length;
+      }
+    }
+    if (fontInfos.signoffOrg) {
+      const res = checkBlockFont('signoffOrg', fontInfos.signoffOrg);
+      if (!res.compliant) {
+        structureIssues.signoffOrg = res.issues;
+        totalIssues += res.issues.length;
+      }
+    }
+    if (fontInfos.signoffDate) {
+      const res = checkBlockFont('signoffDate', fontInfos.signoffDate);
+      if (!res.compliant) {
+        structureIssues.signoffDate = res.issues;
+        totalIssues += res.issues.length;
+      }
+    }
+  }
+
   return {
-    totalBlocks: blocks.length,
-    nonCompliantCount: results.filter(b => !b.fontCompliant).length,
+    totalBlocks: blocks.length + (fontInfos ? Object.keys(fontInfos).length : 0),
+    nonCompliantCount: results.filter(b => !b.fontCompliant).length + Object.keys(structureIssues).length,
     totalIssues,
     blocks: results,
+    structureIssues,
   };
 }

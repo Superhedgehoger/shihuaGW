@@ -23,7 +23,8 @@ export function parseDocument(rawText: string, docType: DocType, importedFonts?:
   const structure: DocumentStructure = {
     docType,
     title: '',
-    body: []
+    body: [],
+    fontInfos: {}
   };
 
   if (lines.length === 0) return structure;
@@ -71,6 +72,9 @@ export function parseDocument(rawText: string, docType: DocType, importedFonts?:
   // ── 1. 首行提取为主标题 ──
   // 对应 VBA Title1() 中的 doc.Paragraphs(1).Range 处理
   structure.title = lines[0];
+  if (importedFonts && importedFonts[0]) {
+    structure.fontInfos!.title = importedFonts[0];
+  }
   let startIndex = 1;
 
   // 跳过草稿标注行（如"（草稿）"），对应 VBA Title1() 中 "（草稿）" 特殊处理
@@ -92,6 +96,9 @@ export function parseDocument(rawText: string, docType: DocType, importedFonts?:
       !/^（[一二三四五六七八九十]）/.test(secondLine);
     if (isSalutation) {
       structure.salutation = secondLine.replace(/:$/, '：'); // 统一为全角冒号
+      if (importedFonts && importedFonts[startIndex]) {
+        structure.fontInfos!.salutation = importedFonts[startIndex];
+      }
       startIndex++;
     }
   }
@@ -113,6 +120,9 @@ export function parseDocument(rawText: string, docType: DocType, importedFonts?:
       if (!structure.signoff) structure.signoff = { organization: '', date: '' };
       // 去掉前导零：对应 VBA Inscribe() 中 "If .Text Like "*0?月*" Then .Characters(6).Delete"
       structure.signoff.date = `${match[1]}年${parseInt(match[2])}月${parseInt(match[3])}日`;
+      if (importedFonts && importedFonts[j]) {
+        structure.fontInfos!.signoffDate = importedFonts[j];
+      }
       break;
     }
   }
@@ -131,6 +141,9 @@ export function parseDocument(rawText: string, docType: DocType, importedFonts?:
       signoffOrgIndex = signoffDateIndex - 1;
       if (!structure.signoff) structure.signoff = { organization: '', date: '' };
       structure.signoff.organization = potentialOrgLine;
+      if (importedFonts && importedFonts[signoffOrgIndex]) {
+        structure.fontInfos!.signoffOrg = importedFonts[signoffOrgIndex];
+      }
     }
   }
 

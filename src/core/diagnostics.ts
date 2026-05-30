@@ -32,15 +32,36 @@ export function runDiagnostics(structure: DocumentStructure): DiagnosticReport {
     addIssue('structure', 'error', '未识别到文档标题。请确保第一行不为空。');
   }
 
-  if (structure.docType === '红头文件') {
+  const strictDocTypes = ['红头文件', '报告', '请示', '通知', '函', '批复', '决定', '通报', '意见'];
+  if (strictDocTypes.includes(structure.docType)) {
     if (!structure.salutation) {
-      addIssue('structure', 'warning', '红头文件未识别到主送机关。通常位于标题下方顶格，以冒号结尾。');
+      addIssue('structure', 'warning', `${structure.docType}通常需要主送机关，未识别到。请确保其位于标题下方顶格，并以冒号结尾。`);
     }
     if (!structure.signoff?.date) {
-      addIssue('structure', 'error', '未识别到落款日期。需采用如“2023年1月1日”的格式。');
+      addIssue('structure', 'error', `${structure.docType}未识别到落款日期。需采用如“2023年1月1日”的格式，通常位于文档末尾。`);
     }
     if (!structure.signoff?.organization) {
-      addIssue('structure', 'warning', '未识别到发文机关署名。通常位于日期上方。');
+      addIssue('structure', 'warning', `${structure.docType}未识别到发文机关署名。通常位于日期上方。`);
+    }
+  }
+
+  // 字体检测 (结构化字段)
+  if (structure.fontInfos) {
+    if (structure.fontInfos.title) {
+      const { compliant, issues: fontIssues } = checkBlockFont('title', structure.fontInfos.title);
+      if (!compliant) fontIssues.forEach(i => addIssue('font', 'error', i.message, structure.title.substring(0, 15) + '...'));
+    }
+    if (structure.fontInfos.salutation && structure.salutation) {
+      const { compliant, issues: fontIssues } = checkBlockFont('salutation', structure.fontInfos.salutation);
+      if (!compliant) fontIssues.forEach(i => addIssue('font', 'error', i.message, structure.salutation!.substring(0, 15) + '...'));
+    }
+    if (structure.fontInfos.signoffOrg && structure.signoff?.organization) {
+      const { compliant, issues: fontIssues } = checkBlockFont('signoffOrg', structure.fontInfos.signoffOrg);
+      if (!compliant) fontIssues.forEach(i => addIssue('font', 'error', i.message, structure.signoff!.organization.substring(0, 15) + '...'));
+    }
+    if (structure.fontInfos.signoffDate && structure.signoff?.date) {
+      const { compliant, issues: fontIssues } = checkBlockFont('signoffDate', structure.fontInfos.signoffDate);
+      if (!compliant) fontIssues.forEach(i => addIssue('font', 'error', i.message, structure.signoff!.date.substring(0, 15) + '...'));
     }
   }
 

@@ -59,7 +59,7 @@ export function useDocumentStore() {
    * 触发执行核心处理引擎
    * NOTE: 通过 stateRef 读取最新值，依赖数组为空，确保引用稳定
    */
-  const processDocument = useCallback(async () => {
+  const processDocument = useCallback(async (activeTemplateId: string = 'default') => {
     const { rawText, docType, metadata } = stateRef.current;
     if (!rawText.trim()) return;
 
@@ -90,7 +90,7 @@ export function useDocumentStore() {
       const validationResults = validateStructure(structure);
       
       // 5. 运行字体检查
-      const fontReport = checkAllFonts(structure.body);
+      const fontReport = checkAllFonts(structure.body, structure.fontInfos);
       structure.body = fontReport.blocks; // 写回带有检查结果的块
 
       setState(prev => ({
@@ -108,7 +108,7 @@ export function useDocumentStore() {
         addToHistory({
           inputText: rawText,
           docType,
-          templateId: stateRef.current.activeTemplate?.id || 'default',
+          templateId: activeTemplateId,
           metadata: newMetadata,
           title: structure.title || rawText.substring(0, 30),
         });
@@ -129,7 +129,7 @@ export function useDocumentStore() {
       );
       
       const newStructure = { ...prev.structure, body: newBody };
-      const newFontReport = checkAllFonts(newBody);
+      const newFontReport = checkAllFonts(newBody, newStructure.fontInfos);
       newStructure.body = newFontReport.blocks;
       
       return {

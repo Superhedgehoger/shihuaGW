@@ -94,6 +94,13 @@ export interface DocumentStructure {
   dept?: string;
   /** 工作表单专用：签发人 */
   approver?: string;
+  /** 结构化字段的字体信息记录（标题、落款等非 body 块的字段） */
+  fontInfos?: {
+    title?: import('../core/fontExtractor').FontInfo;
+    salutation?: import('../core/fontExtractor').FontInfo;
+    signoffOrg?: import('../core/fontExtractor').FontInfo;
+    signoffDate?: import('../core/fontExtractor').FontInfo;
+  };
 }
 
 /** 元数据表单（用户手动填写的补充信息） */

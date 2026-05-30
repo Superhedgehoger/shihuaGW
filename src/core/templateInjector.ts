@@ -509,7 +509,7 @@ function buildDocxFromScratch(
     zip.file('word/footer1.xml', encoder.encode(buildFooterXml()), { binary: true });
   }
 
-  const content = zip.generate({ type: 'uint8array', compression: 'DEFLATE' });
+  const content = zip.generate({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', compression: 'DEFLATE' }) as unknown as Uint8Array;
   return new Blob([content as any], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 }
 
@@ -677,10 +677,13 @@ async function injectIntoTemplate(
   const serializer = new XMLSerializer();
   let modifiedXml = serializer.serializeToString(xmlDoc);
   modifiedXml = modifiedXml.replace(/ xmlns=""/g, '');
+  if (!modifiedXml.startsWith('<?xml')) {
+    modifiedXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' + modifiedXml;
+  }
   const encoder = new TextEncoder();
   zip.file('word/document.xml', encoder.encode(modifiedXml), { binary: true });
 
-  const content = zip.generate({ type: 'uint8array', compression: 'DEFLATE' });
+  const content = zip.generate({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', compression: 'DEFLATE' }) as unknown as Uint8Array;
   return new Blob([content as any], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
 }
 

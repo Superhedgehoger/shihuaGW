@@ -93,7 +93,7 @@ export default function EditorPage() {
       if (e.key === 'Enter') {
         e.preventDefault();
         if (!state.isProcessing && state.rawText.trim()) {
-          processDocument();
+          processDocument(activeTemplate.id);
         }
       } else if (e.key === 's') {
         e.preventDefault();
@@ -141,7 +141,7 @@ export default function EditorPage() {
             <button
               className="btn btn-primary"
               style={{ flex: 1 }}
-              onClick={processDocument}
+              onClick={() => processDocument(activeTemplate.id)}
               disabled={state.isProcessing || !state.rawText.trim()}
               title="Ctrl+Enter"
             >
