@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { TemplateConfig, TemplateStore } from '../types/template';
 import { BUILTIN_TEMPLATES, DEFAULT_TEMPLATE_ID } from '../constants/defaultTemplates';
+import { readLegacyTemplates } from '../core/templateMigration';
 
 const STORAGE_KEY = 'shihua_template_store';
 
@@ -20,6 +21,21 @@ function loadStore(): TemplateStore {
     }
   } catch {
     // 读取失败时使用默认值
+  }
+  // shihua-doc-formatter used a separate localStorage array. Keep the old
+  // key untouched as a backup and migrate its templates into the v3 store.
+  try {
+    const legacyRaw = localStorage.getItem('customTemplates');
+    if (legacyRaw) {
+      const migrated = readLegacyTemplates(JSON.parse(legacyRaw));
+      const user = Object.fromEntries(migrated.map(template => {
+        const id = generateId();
+        return [id, { ...template, id }];
+      }));
+      return { builtin: BUILTIN_TEMPLATES, user, activeTemplateId: DEFAULT_TEMPLATE_ID };
+    }
+  } catch {
+    // Invalid legacy data should not prevent the application from starting.
   }
   return {
     builtin: BUILTIN_TEMPLATES,
@@ -163,11 +179,18 @@ export function useTemplateStore() {
     let imported = 0;
     try {
       const parsed = JSON.parse(json) as { version?: number; user?: Record<string, TemplateConfig> };
-      if (!parsed.user || typeof parsed.user !== 'object') {
-        return { imported: 0, errors: ['JSON 格式不正确，缺少 user 字段'] };
+      const legacyTemplates = readLegacyTemplates(parsed);
+      const candidates: Array<[string, TemplateConfig]> = parsed.user && typeof parsed.user === 'object'
+        ? Object.entries(parsed.user)
+        : legacyTemplates.map((template, index) => {
+            const key = `legacy_${index}`;
+            return [key, { ...template, id: key }];
+          });
+      if (candidates.length === 0) {
+        return { imported: 0, errors: ['JSON 格式不正确，未找到可导入的新版或旧版模板'] };
       }
       const newUser: Record<string, TemplateConfig> = {};
-      for (const [key, tmpl] of Object.entries(parsed.user)) {
+      for (const [key, tmpl] of candidates) {
         // 简单校验必填字段
         if (!tmpl.name || !tmpl.styles || !tmpl.page) {
           errors.push(`模板 "${key}" 缺少必填字段，已跳过`);
