@@ -1,19 +1,26 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { TemplateConfig, TemplateStore } from '../types/template';
 import { BUILTIN_TEMPLATES, DEFAULT_TEMPLATE_ID } from '../constants/defaultTemplates';
-import { readLegacyTemplates } from '../core/templateMigration';
+import { mergeLegacyTemplates, readLegacyTemplates } from '../core/templateMigration';
 
 const STORAGE_KEY = 'shihua_template_store';
+const LEGACY_STORAGE_KEY = 'customTemplates';
+const LEGACY_MIGRATION_KEY = 'shihua_legacy_templates_migrated_v1';
 
 /**
  * 从 localStorage 加载模板仓库，合并内置模板（内置始终以代码为准）
  */
 function loadStore(): TemplateStore {
+  let loaded: TemplateStore = {
+    builtin: BUILTIN_TEMPLATES,
+    user: {},
+    activeTemplateId: DEFAULT_TEMPLATE_ID,
+  };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const saved = JSON.parse(raw) as Partial<TemplateStore>;
-      return {
+      loaded = {
         builtin: BUILTIN_TEMPLATES,
         user: saved.user ?? {},
         activeTemplateId: saved.activeTemplateId ?? DEFAULT_TEMPLATE_ID,
@@ -22,26 +29,22 @@ function loadStore(): TemplateStore {
   } catch {
     // 读取失败时使用默认值
   }
-  // shihua-doc-formatter used a separate localStorage array. Keep the old
-  // key untouched as a backup and migrate its templates into the v3 store.
+  if (localStorage.getItem(LEGACY_MIGRATION_KEY) === '1') return loaded;
+
+  // Keep the old key untouched as a backup. Merge it even when a v3 store
+  // already exists, which is the normal case for returning users.
   try {
-    const legacyRaw = localStorage.getItem('customTemplates');
+    const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
     if (legacyRaw) {
-      const migrated = readLegacyTemplates(JSON.parse(legacyRaw));
-      const user = Object.fromEntries(migrated.map(template => {
-        const id = generateId();
-        return [id, { ...template, id }];
-      }));
-      return { builtin: BUILTIN_TEMPLATES, user, activeTemplateId: DEFAULT_TEMPLATE_ID };
+      const merged = mergeLegacyTemplates(loaded.user, JSON.parse(legacyRaw), generateId);
+      loaded = { ...loaded, user: merged.user };
+      if (merged.imported > 0) saveStore(loaded);
     }
+    localStorage.setItem(LEGACY_MIGRATION_KEY, '1');
   } catch {
     // Invalid legacy data should not prevent the application from starting.
   }
-  return {
-    builtin: BUILTIN_TEMPLATES,
-    user: {},
-    activeTemplateId: DEFAULT_TEMPLATE_ID,
-  };
+  return loaded;
 }
 
 function saveStore(store: TemplateStore): void {

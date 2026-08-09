@@ -13,18 +13,20 @@ function numberOr(value: unknown, fallback: number): number {
 
 function migrateStyle(value: unknown, fallback: ElementStyle): ElementStyle {
   if (!isObject(value)) return { ...fallback };
-  const indentChars = numberOr(value.indent, 2);
+  const size = numberOr(value.size, fallback.size);
+  const fallbackIndentChars = size > 0 ? fallback.indentPt / size : 0;
+  const indentChars = numberOr(value.indent, fallbackIndentChars);
   return {
     fontCn: typeof value.fontCn === 'string' ? value.fontCn : fallback.fontCn,
     fontEn: typeof value.fontEn === 'string' ? value.fontEn : fallback.fontEn,
-    size: numberOr(value.size, fallback.size),
+    size,
     isBold: typeof value.isBold === 'boolean'
       ? value.isBold
       : (typeof value.bold === 'boolean' ? value.bold : fallback.isBold),
     align: ['left', 'center', 'right', 'justify'].includes(String(value.align))
       ? value.align as ElementStyle['align']
       : fallback.align,
-    indentPt: numberOr(value.indentPt, indentChars * numberOr(value.size, fallback.size)),
+    indentPt: numberOr(value.indentPt, indentChars * size),
     lineSpacingPt: numberOr(value.lineSpacingPt, numberOr(value.lineHeight, fallback.lineSpacingPt ?? 28)),
   };
 }
@@ -92,4 +94,28 @@ export function readLegacyTemplates(value: unknown): Omit<TemplateConfig, 'id'>[
   return candidates
     .map(migrateLegacyTemplate)
     .filter((template): template is Omit<TemplateConfig, 'id'> => template !== null);
+}
+
+/** Merge old templates without duplicating names already present in the v3 store. */
+export function mergeLegacyTemplates(
+  user: Record<string, TemplateConfig>,
+  value: unknown,
+  createId: () => string,
+): { user: Record<string, TemplateConfig>; imported: number } {
+  const merged = { ...user };
+  const existingNames = new Set(
+    Object.values(user).map(template => template.name.trim().toLocaleLowerCase())
+  );
+  let imported = 0;
+
+  for (const template of readLegacyTemplates(value)) {
+    const normalizedName = template.name.trim().toLocaleLowerCase();
+    if (existingNames.has(normalizedName)) continue;
+    const id = createId();
+    merged[id] = { ...template, id };
+    existingNames.add(normalizedName);
+    imported += 1;
+  }
+
+  return { user: merged, imported };
 }

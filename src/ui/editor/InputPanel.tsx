@@ -1,7 +1,4 @@
 import { useRef, useState, useCallback } from 'react';
-import { parseDocxToText } from '../../parsers/docxParser';
-import { parseDocToText } from '../../parsers/docParser';
-import { parseTxt } from '../../parsers/txtParser';
 import type { FontMapItem } from '../../core/fontExtractor';
 
 interface Props {
@@ -31,18 +28,21 @@ export default function InputPanel({ text, onTextChange, onFontsExtracted }: Pro
       let extractedText = '';
       const filenameLower = file.name.toLowerCase();
       if (filenameLower.endsWith('.docx')) {
+        const { parseDocxToText } = await import('../../parsers/docxParser');
         const result = await parseDocxToText(file);
         extractedText = result.text;
         if (onFontsExtracted) {
           onFontsExtracted(result.fonts);
         }
       } else if (filenameLower.endsWith('.doc')) {
+        const { parseDocToText } = await import('../../parsers/docParser');
         extractedText = await parseDocToText(file);
       } else if (
         filenameLower.endsWith('.txt') ||
         filenameLower.endsWith('.md') ||
         filenameLower.endsWith('.markdown')
       ) {
+        const { parseTxt } = await import('../../parsers/txtParser');
         extractedText = await parseTxt(file);
       } else {
         setUploadError('仅支持 .docx、.doc、.txt 或 .md 格式的文件');

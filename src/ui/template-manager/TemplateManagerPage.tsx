@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import type { TemplateConfig } from '../../types/template';
 import { useTemplateStore } from '../../store/useTemplateStore';
+import { generateBlankWordTemplate, templateDownloadName } from '../../core/templateGenerator';
 import TemplateList from './TemplateList';
 import TemplateDetailPanel from './TemplateDetailPanel';
 import styles from './TemplateManagerPage.module.css';
@@ -29,6 +30,17 @@ export default function TemplateManagerPage() {
   // 导入文件 input ref
   const importInputRef = useRef<HTMLInputElement>(null);
   const [importResult, setImportResult] = useState<{ imported: number; errors: string[] } | null>(null);
+
+  const handleDownloadWordTemplate = () => {
+    if (!selectedTemplate) return;
+    const blob = generateBlankWordTemplate(selectedTemplate);
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = templateDownloadName(selectedTemplate);
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
 
   /** 从内置模板另存为新自定义模板 */
   const handleCloneTemplate = (id: string, sourceName: string) => {
@@ -105,6 +117,9 @@ export default function TemplateManagerPage() {
           </span>
         </div>
         <div className={styles.toolbarRight}>
+          <button className="btn btn-ghost btn-sm" onClick={handleDownloadWordTemplate} disabled={!selectedTemplate}>
+            📄 下载空白 Word 模板
+          </button>
           <button className="btn btn-ghost btn-sm" onClick={handleImportClick}>
             📥 导入 JSON
           </button>
