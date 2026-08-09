@@ -11,7 +11,6 @@ import HistoryPanel from '../editor/HistoryPanel';
 import SettingsModal from '../editor/SettingsModal';
 import TemplateMarketModal from '../editor/TemplateMarketModal';
 import PrintPreviewModal from '../editor/PrintPreviewModal';
-import { exportDocx } from '../../core/templateInjector';
 
 import styles from './EditorPage.module.css';
 
@@ -71,6 +70,7 @@ export default function EditorPage() {
 
     setIsExporting(true);
     try {
+      const { exportDocx } = await import('../../core/templateInjector');
       const blob = await exportDocx(state.structure, state.metadata, activeTemplate);
 
       // 触发浏览器下载
