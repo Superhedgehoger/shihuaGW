@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import type { TemplateConfig } from '../../types/template';
-import { useTemplateStore } from '../../store/useTemplateStore';
+import { useTemplateStore } from '../../store/TemplateStoreContext';
 import { generateBlankWordTemplate, templateDownloadName } from '../../core/templateGenerator';
 import TemplateList from './TemplateList';
 import TemplateDetailPanel from './TemplateDetailPanel';

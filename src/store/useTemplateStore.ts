@@ -64,7 +64,7 @@ function generateId(): string {
  * 模板仓库 Hook
  * 提供增删改查、激活管理、导入/导出能力
  */
-export function useTemplateStore() {
+export function useTemplateStoreState() {
   const [store, setStore] = useState<TemplateStore>(loadStore);
 
   // 状态变更时自动持久化
@@ -224,3 +224,5 @@ export function useTemplateStore() {
     importUserTemplates,
   };
 }
+
+export type TemplateStoreApi = ReturnType<typeof useTemplateStoreState>;

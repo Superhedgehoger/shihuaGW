@@ -1,6 +1,7 @@
 import PizZip from 'pizzip';
 import type { DocumentStructure, MetadataForm } from '../types/document';
 import type { TemplateConfig } from '../types/template';
+import { applyMetadataToStructure, getColophonLines, getHeaderMetadataLines } from './documentMetadata';
 
 // ============================================================================
 // 辅助常量
@@ -162,6 +163,15 @@ const PARA_STYLES: Record<string, WordParaStyle> = {
     lineSpaceTwip: 540,
     indentFirstTwip: CHAR_TO_TWIP * 2,
   },
+  colophon: {
+    fontCn: '仿宋',
+    fontEn: 'Times New Roman',
+    halfPt: 280,
+    bold: false,
+    jc: 'left',
+    lineSpaceTwip: 440,
+    indentFirstTwip: 0,
+  },
 };
 
 /**
@@ -251,6 +261,7 @@ function buildParagraphXml(text: string, styleKey: string, templateConfig?: Temp
       signoffOrg: styles.signoffOrg,
       signoffDate: styles.signoffDate,
       attachment: styles.attachment,
+      colophon: styles.colophon,
     };
     const es = styleMap[styleKey] ?? styles.body;
     const rightIndent = (styleKey === 'signoffOrg') ? signoffRightIndent
@@ -478,7 +489,6 @@ function buildStyles(): string {
  */
 function buildDocxFromScratch(
   structure: DocumentStructure,
-  _metadata: MetadataForm,
   templateConfig: TemplateConfig
 ): Blob {
   const totalPages = estimatePageCount(structure);
@@ -491,6 +501,10 @@ function buildDocxFromScratch(
   // 主标题
   if (structure.title) {
     paraXmls.push(buildParagraphXml(structure.title, 'title', templateConfig));
+  }
+
+  for (const line of getHeaderMetadataLines(structure)) {
+    paraXmls.push(buildParagraphXml(line, 'colophon', templateConfig));
   }
 
   // 主送机关
@@ -520,6 +534,10 @@ function buildDocxFromScratch(
     if (structure.signoff.date) {
       paraXmls.push(buildParagraphXml(structure.signoff.date, 'signoffDate', templateConfig));
     }
+  }
+
+  for (const line of getColophonLines(structure)) {
+    paraXmls.push(buildParagraphXml(line, 'colophon', templateConfig));
   }
 
   // ── 构建 document.xml ──
@@ -587,6 +605,10 @@ export async function exportDocx(
   metadata: MetadataForm,
   templateConfig: TemplateConfig
 ): Promise<Blob> {
+  // Defensively merge editable form values at the export boundary so callers
+  // cannot produce a preview/export mismatch with stale structure metadata.
+  const exportStructure = applyMetadataToStructure(structure, metadata);
+
   // ── 尝试加载自定义上传模板 ──
   if (templateConfig.base64Docx) {
     try {
@@ -598,22 +620,28 @@ export async function exportDocx(
       for (let i = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
       }
-      return await injectIntoTemplateBuffer(bytes.buffer, structure, metadata, templateConfig);
+      return await injectIntoTemplateBuffer(bytes.buffer, exportStructure, templateConfig);
     } catch (error) {
       console.warn(`[exportDocx] 自定义模板解析失败，将回退:`, error);
     }
   }
 
+  // A custom/standalone template explicitly configured with `none` must not
+  // silently fetch a GB template. Generate locally when no valid upload exists.
+  if (templateConfig.wordTemplatePreset === 'none') {
+    return buildDocxFromScratch(exportStructure, templateConfig);
+  }
+
   // ── 尝试加载预置 Word 模板 ──
-  const preset = templateConfig.wordTemplatePreset === 'none' ? 'gb' : templateConfig.wordTemplatePreset;
-  const tplUrl = `/templates/${preset}/${structure.docType}.docx`;
+  const preset = templateConfig.wordTemplatePreset;
+  const tplUrl = `/templates/${preset}/${exportStructure.docType}.docx`;
 
   try {
     const response = await fetch(tplUrl);
     if (response.ok) {
       const arrayBuffer = await response.arrayBuffer();
       // 模板文件存在：走注入路径（Hybrid Template Injection）
-      return await injectIntoTemplateBuffer(arrayBuffer, structure, metadata, templateConfig);
+      return await injectIntoTemplateBuffer(arrayBuffer, exportStructure, templateConfig);
     }
     // HTTP 错误（404 等）→ fallback
     console.info(`[exportDocx] 模板文件未找到 (${tplUrl})，已自动切换为从头生成模式。`);
@@ -623,7 +651,7 @@ export async function exportDocx(
   }
 
   // ── Fallback：从头构建 ──
-  return buildDocxFromScratch(structure, metadata, templateConfig);
+  return buildDocxFromScratch(exportStructure, templateConfig);
 }
 
 // ============================================================================
@@ -639,7 +667,6 @@ export async function exportDocx(
 async function injectIntoTemplateBuffer(
   arrayBuffer: ArrayBuffer,
   structure: DocumentStructure,
-  _metadata: MetadataForm,
   templateConfig: TemplateConfig
 ): Promise<Blob> {
   const zip = new PizZip(arrayBuffer);
@@ -692,6 +719,7 @@ async function injectIntoTemplateBuffer(
           signoffOrg: styles.signoffOrg,
           signoffDate: styles.signoffDate,
           attachment: styles.attachment,
+          colophon: styles.colophon,
         };
         return styleMap[styleKey] ?? styles.body;
       })(),
@@ -734,6 +762,9 @@ async function injectIntoTemplateBuffer(
 
   const fragments: Element[] = [];
   if (structure.title) fragments.push(createParagraph(structure.title, 'title'));
+  for (const line of getHeaderMetadataLines(structure)) {
+    fragments.push(createParagraph(line, 'colophon'));
+  }
   if (structure.salutation) fragments.push(createParagraph(structure.salutation, 'salutation'));
   for (const block of structure.body) {
     let styleKey = 'body';
@@ -748,6 +779,9 @@ async function injectIntoTemplateBuffer(
   if (structure.signoff) {
     if (structure.signoff.organization) fragments.push(createParagraph(structure.signoff.organization, 'signoffOrg'));
     if (structure.signoff.date) fragments.push(createParagraph(structure.signoff.date, 'signoffDate'));
+  }
+  for (const line of getColophonLines(structure)) {
+    fragments.push(createParagraph(line, 'colophon'));
   }
 
   // ── 找占位符或追加到尾部 ──

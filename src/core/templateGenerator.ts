@@ -1,12 +1,6 @@
-import type { MetadataForm, DocumentStructure } from '../types/document';
+import type { DocumentStructure } from '../types/document';
 import type { TemplateConfig } from '../types/template';
 import { buildDocxFromScratch } from './templateInjector';
-
-const EMPTY_METADATA: MetadataForm = {
-  fileNumber: '', salutation: '', signoffOrg: '', signoffDate: '', cc: '',
-  meetingNumber: '', drafter: '', dept: '', phone: '', deptReviewer: '',
-  officeReviewer: '', approver: '',
-};
 
 /** Build a reusable local Word template containing the injector placeholder. */
 export function generateBlankWordTemplate(template: TemplateConfig): Blob {
@@ -15,7 +9,7 @@ export function generateBlankWordTemplate(template: TemplateConfig): Blob {
     title: '',
     body: [{ id: 'template_body', type: 'body', text: '{{BODY_PLACEHOLDER}}' }],
   };
-  return buildDocxFromScratch(structure, EMPTY_METADATA, template);
+  return buildDocxFromScratch(structure, template);
 }
 
 export function templateDownloadName(template: TemplateConfig): string {

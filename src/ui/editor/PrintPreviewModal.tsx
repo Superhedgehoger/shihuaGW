@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import type { DocumentStructure } from '../../types/document';
 import type { TemplateConfig } from '../../types/template';
 import styles from './PrintPreviewModal.module.css';
+import { getColophonLines, getHeaderMetadataLines } from '../../core/documentMetadata';
 
 interface Props {
   isOpen: boolean;
@@ -68,6 +69,12 @@ export default function PrintPreviewModal({ isOpen, onClose, structure, template
               {structure.title}
             </div>
           )}
+
+          {getHeaderMetadataLines(structure).map((line, index) => (
+            <div key={`header-metadata-${index}`} style={getStyle('colophon')}>
+              {line}
+            </div>
+          ))}
           
           {structure.salutation && (
             <div style={{ ...getStyle('salutation'), marginBottom: '12pt' }}>
@@ -105,6 +112,12 @@ export default function PrintPreviewModal({ isOpen, onClose, structure, template
               )}
             </div>
           )}
+
+          {getColophonLines(structure).map((line, index) => (
+            <div key={`colophon-${index}`} style={{ ...getStyle('colophon'), marginTop: index === 0 ? '18pt' : undefined }}>
+              {line}
+            </div>
+          ))}
         </div>
       </div>
     </div>

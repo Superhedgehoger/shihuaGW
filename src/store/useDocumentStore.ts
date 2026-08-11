@@ -8,6 +8,7 @@ import { addToHistory } from '../core/history';
 import { getSetting, addRecentMetadata } from '../core/configManager';
 import { checkAllFonts } from '../core/fontChecker';
 import type { FontMapItem } from '../core/fontExtractor';
+import { applyMetadataToStructure, populateMetadataFromStructure } from '../core/documentMetadata';
 
 const INITIAL_METADATA: MetadataForm = {
   fileNumber: '', salutation: '', signoffOrg: '', signoffDate: '', cc: '',
@@ -41,6 +42,8 @@ export function useDocumentStore() {
 
   const setRawText = useCallback((rawText: string) => {
     setState(prev => ({ ...prev, rawText }));
+    // Font positions are only valid for the exact DOCX text they came from.
+    setImportedFonts([]);
   }, []);
 
   const setDocType = useCallback((docType: DocType) => {
@@ -51,8 +54,24 @@ export function useDocumentStore() {
     setState(prev => ({ ...prev, processMode }));
   }, []);
 
-  const updateMetadata = useCallback((patch: Partial<MetadataForm>) => {
-    setState(prev => ({ ...prev, metadata: { ...prev.metadata, ...patch } }));
+  const updateMetadata = useCallback((patch: Partial<MetadataForm>, rulesPreset: string = 'qsh') => {
+    setState(prev => {
+      const metadata = { ...prev.metadata, ...patch };
+      if (!prev.structure) return { ...prev, metadata };
+
+      const structure = applyMetadataToStructure(prev.structure, metadata);
+      const fontReport = checkAllFonts(structure.body, structure.fontInfos, rulesPreset);
+      structure.body = fontReport.blocks;
+
+      return {
+        ...prev,
+        metadata,
+        structure,
+        diagnosticReport: runDiagnostics(structure, rulesPreset),
+        validationResults: validateStructure(structure, fontReport, rulesPreset),
+        fontReport,
+      };
+    });
   }, []);
 
   /**
@@ -69,21 +88,11 @@ export function useDocumentStore() {
       const rawStructure = parseDocument(rawText, docType, importedFonts, rulesPreset);
       
       // 2. 应用 VBA 等效排版规则（自动重编号、标题规范化、附件整理等）
-      const structure = applyVbaFormatting(rawStructure);
+      let structure = applyVbaFormatting(rawStructure);
       
       // 3. 结合解析内容自动填充元数据（如果为空）
-      const newMetadata = { ...metadata };
-      if (structure.salutation && !newMetadata.salutation) {
-        newMetadata.salutation = structure.salutation;
-      }
-      if (structure.signoff) {
-        if (!newMetadata.signoffOrg && structure.signoff.organization) {
-          newMetadata.signoffOrg = structure.signoff.organization;
-        }
-        if (!newMetadata.signoffDate && structure.signoff.date) {
-          newMetadata.signoffDate = structure.signoff.date;
-        }
-      }
+      const newMetadata = populateMetadataFromStructure(metadata, structure);
+      structure = applyMetadataToStructure(structure, newMetadata);
 
       // 4. 运行诊断与校验
       const diagnosticReport = runDiagnostics(structure, rulesPreset);
