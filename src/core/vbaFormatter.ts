@@ -261,3 +261,12 @@ export function applyVbaFormatting(structure: DocumentStructure): DocumentStruct
 
   return result;
 }
+
+/** Apply safe textual corrections without renumbering the document outline. */
+export function applyQuickFixes(structure: DocumentStructure): DocumentStructure {
+  let result = { ...structure };
+  result.title = normalizeTitle(result.title);
+  result.body = ensureHeadingPunctuation(result.body);
+  result = normalizeAttachments(result);
+  return normalizeInscribe(result);
+}

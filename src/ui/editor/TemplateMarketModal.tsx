@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import type { TemplateConfig } from '../../types/template';
-import { useTemplateStore } from '../../store/useTemplateStore';
+import { useTemplateStore } from '../../store/TemplateStoreContext';
+import { resolveRulesStandard } from '../../core/templateStandard';
 
 interface Props {
   isOpen: boolean;
@@ -31,11 +32,12 @@ export default function TemplateMarketModal({ isOpen, onClose }: Props) {
       const newName = file.name.replace('.docx', '');
       
       // Create a new template based on default, but with this custom docx
-      const newTmpl = createTemplate(newName);
+      const newTmpl = createTemplate(newName, activeTemplate.id);
       updateTemplate(newTmpl.id, {
         description: '用户上传的自定义 Word 模板',
         base64Docx: base64Data,
         wordTemplatePreset: 'none',
+        rulesStandard: resolveRulesStandard(activeTemplate),
       });
       
       setActiveTemplate(newTmpl.id);
@@ -109,7 +111,7 @@ export default function TemplateMarketModal({ isOpen, onClose }: Props) {
                 </p>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
-                    {tmpl.rulesStandard === 'gb' ? '国家标准' : '石化标准'}
+                    {resolveRulesStandard(tmpl) === 'gb' ? '国家标准' : '石化标准'}
                   </span>
                   {!tmpl.isBuiltin && (
                     <button 

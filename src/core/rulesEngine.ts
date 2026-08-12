@@ -1,6 +1,7 @@
 import type { BlockType } from '../types/document';
 import qshRulesJson from '../rules/qsh-rules.json';
 import gbRulesJson from '../rules/gb-rules.json';
+import type { RulesStandard } from './templateStandard';
 
 // ============================================================================
 // 规则类型定义
@@ -98,7 +99,7 @@ export function compilePatterns(rules: DocRules): CompiledPatterns {
 // ============================================================================
 
 /** 内置规则包注册表 */
-const RULES_REGISTRY: Record<string, DocRules> = {
+const RULES_REGISTRY: Record<RulesStandard, DocRules> = {
   qsh: qshRulesJson as DocRules,
   gb: gbRulesJson as DocRules,
 };
@@ -109,9 +110,8 @@ const RULES_REGISTRY: Record<string, DocRules> = {
  * @param preset 模板的 wordTemplatePreset（'qsh' | 'gb' | 'none'）
  * @returns 对应的规则包（默认返回石化标准）
  */
-export function loadRules(preset: string = 'qsh'): DocRules {
-  if (preset === 'none') return RULES_REGISTRY['gb'];
-  return RULES_REGISTRY[preset] ?? RULES_REGISTRY['qsh'];
+export function loadRules(preset: RulesStandard = 'qsh'): DocRules {
+  return RULES_REGISTRY[preset];
 }
 
 /**
@@ -120,7 +120,7 @@ export function loadRules(preset: string = 'qsh'): DocRules {
  * @param preset 模板预设
  * @param blockType 段落类型
  */
-export function getExpectedFont(preset: string, blockType: BlockType | string): { eastAsia: string; ascii: string } | undefined {
+export function getExpectedFont(preset: RulesStandard, blockType: BlockType | string): { eastAsia: string; ascii: string } | undefined {
   const rules = loadRules(preset);
   return rules.expectedFonts[blockType] as { eastAsia: string; ascii: string } | undefined;
 }
@@ -128,6 +128,6 @@ export function getExpectedFont(preset: string, blockType: BlockType | string): 
 /**
  * 获取指定标准的严格公文类型列表
  */
-export function getStrictDocTypes(preset: string = 'qsh'): string[] {
+export function getStrictDocTypes(preset: RulesStandard = 'qsh'): string[] {
   return loadRules(preset).strictDocTypes;
 }

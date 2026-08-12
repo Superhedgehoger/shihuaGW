@@ -26,14 +26,13 @@ export default function InputPanel({ text, onTextChange, onFontsExtracted }: Pro
     setUploadError(null);
     try {
       let extractedText = '';
+      let extractedFonts: FontMapItem[] = [];
       const filenameLower = file.name.toLowerCase();
       if (filenameLower.endsWith('.docx')) {
         const { parseDocxToText } = await import('../../parsers/docxParser');
         const result = await parseDocxToText(file);
         extractedText = result.text;
-        if (onFontsExtracted) {
-          onFontsExtracted(result.fonts);
-        }
+        extractedFonts = result.fonts;
       } else if (filenameLower.endsWith('.doc')) {
         const { parseDocToText } = await import('../../parsers/docParser');
         extractedText = await parseDocToText(file);
@@ -54,6 +53,9 @@ export default function InputPanel({ text, onTextChange, onFontsExtracted }: Pro
         // 追加模式会导致字体数组（fontInfo）的行号与文本行号永久错位，
         // 因为字体数组始终对应当前文件，而文本可能混合了多个来源。
         onTextChange(extractedText);
+        // onTextChange clears font data belonging to the previous text. Apply
+        // the fonts from this DOCX afterwards; other formats keep an empty map.
+        onFontsExtracted?.(extractedFonts);
       } else {
         setUploadError('文件内容为空，请检查文件');
       }
@@ -65,7 +67,7 @@ export default function InputPanel({ text, onTextChange, onFontsExtracted }: Pro
       // 清空 input 状态，允许重复上传同一文件
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
-  }, [text, onTextChange, onFontsExtracted]);
+  }, [onTextChange, onFontsExtracted]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();

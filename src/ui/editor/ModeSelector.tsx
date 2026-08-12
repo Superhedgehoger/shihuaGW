@@ -106,6 +106,11 @@ export default function ModeSelector({
               className={`btn ${isSelected ? 'btn-primary' : 'btn-ghost'}`}
               style={{ flex: 1 }}
               onClick={() => onModeChange(m)}
+              title={m === 'full'
+                ? '执行完整规范化并重新编号标题层级'
+                : m === 'diagnose'
+                  ? '只检查问题，不改动识别出的正文与编号'
+                  : '修复标点、标题和日期，但保留原有标题编号'}
             >
               {label}
             </button>

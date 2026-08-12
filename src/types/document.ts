@@ -92,6 +92,12 @@ export interface DocumentStructure {
   drafter?: string;
   /** 工作表单专用：拟稿部门 */
   dept?: string;
+  /** 工作表单专用：联系电话 */
+  phone?: string;
+  /** 工作表单专用：部门审核人 */
+  deptReviewer?: string;
+  /** 工作表单专用：办公室审核人 */
+  officeReviewer?: string;
   /** 工作表单专用：签发人 */
   approver?: string;
   /** 结构化字段的字体信息记录（标题、落款等非 body 块的字段） */

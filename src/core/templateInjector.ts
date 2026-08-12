@@ -1,6 +1,8 @@
 import PizZip from 'pizzip';
 import type { DocumentStructure, MetadataForm } from '../types/document';
 import type { TemplateConfig } from '../types/template';
+import { applyMetadataToStructure, getColophonLines, getHeaderMetadataLines } from './documentMetadata';
+import { sanitizeXmlText } from './xmlText';
 
 // ============================================================================
 // 辅助常量
@@ -162,6 +164,15 @@ const PARA_STYLES: Record<string, WordParaStyle> = {
     lineSpaceTwip: 540,
     indentFirstTwip: CHAR_TO_TWIP * 2,
   },
+  colophon: {
+    fontCn: '仿宋',
+    fontEn: 'Times New Roman',
+    halfPt: 280,
+    bold: false,
+    jc: 'left',
+    lineSpaceTwip: 440,
+    indentFirstTwip: 0,
+  },
 };
 
 /**
@@ -199,7 +210,7 @@ function elementStyleToWordStyle(es: import('../types/template').ElementStyle, i
  * 对应 VBA PaperSetup()：A4，上下2.54cm，左右3.17cm（GB）/ 左2.8右2.6（Q/SH）
  * 页眉距离1.5cm，页脚距离1.75cm（对应 VBA 中 HeaderDistance/FooterDistance）
  */
-function buildSectPrXml(cfg: TemplateConfig, totalPages: number): string {
+function buildSectPrXml(cfg: TemplateConfig): string {
   const topTwip    = Math.round(cfg.page.top    * CM_TO_TWIP);
   const bottomTwip = Math.round(cfg.page.bottom * CM_TO_TWIP);
   const leftTwip   = Math.round(cfg.page.left   * CM_TO_TWIP);
@@ -210,9 +221,7 @@ function buildSectPrXml(cfg: TemplateConfig, totalPages: number): string {
   const footerDistTwip = Math.round(1.75 * CM_TO_TWIP);
 
   // 注意：页脚引用 rId99，在 document.xml.rels 中需对应
-  const footerRef = totalPages > 2
-    ? '<w:footerReference w:type="default" r:id="rId99"/>'
-    : '';
+  const footerRef = '<w:footerReference w:type="default" r:id="rId99"/>';
 
   return `
     <w:sectPr>
@@ -251,6 +260,7 @@ function buildParagraphXml(text: string, styleKey: string, templateConfig?: Temp
       signoffOrg: styles.signoffOrg,
       signoffDate: styles.signoffDate,
       attachment: styles.attachment,
+      colophon: styles.colophon,
     };
     const es = styleMap[styleKey] ?? styles.body;
     const rightIndent = (styleKey === 'signoffOrg') ? signoffRightIndent
@@ -269,8 +279,7 @@ function buildParagraphXml(text: string, styleKey: string, templateConfig?: Temp
     : '';
 
   // 转义 XML 特殊字符并过滤非法控制字符
-  const escaped = text
-    .replace(/[^\x09\x0A\x0D\x20-\uD7FF\uE000-\uFFFD\u10000-\u10FFFF]/g, '')
+  const escaped = sanitizeXmlText(text)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -307,7 +316,9 @@ function buildParagraphXml(text: string, styleKey: string, templateConfig?: Temp
  * 对应 VBA PageNumGW()：页码格式 "－ N －"，宋体14pt，居中
  * 使用全角连字符 "－"（U+FF0D），避免破折号导致 PDF 导出格式混乱
  *
- * NOTE: 此处使用 wdFieldPage 域代码（OOXML 中对应 <w:fldChar> + <w:instrText>PAGE</w:instrText>）
+ * Word evaluates the IF/NUMPAGES field after pagination, so page numbers are
+ * shown only when the real document has more than two pages. This avoids an
+ * inaccurate paragraph-count estimate.
  */
 function buildFooterXml(): string {
   // 14pt 字号 → 半磅值 280
@@ -339,53 +350,27 @@ function buildFooterXml(): string {
         <w:szCs w:val="${sz}"/>
       </w:rPr>
     </w:pPr>
-    <w:r>
-      <w:rPr>
-        <w:rFonts w:ascii="宋体" w:hAnsi="宋体" w:eastAsia="宋体"/>
-        <w:sz w:val="${sz}"/>
-        <w:szCs w:val="${sz}"/>
-      </w:rPr>
-      <w:t xml:space="preserve">－ </w:t>
-    </w:r>
-    <w:fldSimple w:instr=" PAGE \* MERGEFORMAT ">
-      <w:r>
-        <w:rPr>
-          <w:rFonts w:ascii="宋体" w:hAnsi="宋体" w:eastAsia="宋体"/>
-          <w:sz w:val="${sz}"/>
-          <w:szCs w:val="${sz}"/>
-        </w:rPr>
-        <w:t>1</w:t>
-      </w:r>
-    </w:fldSimple>
-    <w:r>
-      <w:rPr>
-        <w:rFonts w:ascii="宋体" w:hAnsi="宋体" w:eastAsia="宋体"/>
-        <w:sz w:val="${sz}"/>
-        <w:szCs w:val="${sz}"/>
-      </w:rPr>
-      <w:t xml:space="preserve"> －</w:t>
-    </w:r>
+    <w:r><w:fldChar w:fldCharType="begin"/></w:r>
+    <w:r><w:instrText xml:space="preserve"> IF </w:instrText></w:r>
+    <w:r><w:fldChar w:fldCharType="begin"/></w:r>
+    <w:r><w:instrText xml:space="preserve"> NUMPAGES </w:instrText></w:r>
+    <w:r><w:fldChar w:fldCharType="end"/></w:r>
+    <w:r><w:instrText xml:space="preserve"> &gt; 2 &quot;－ </w:instrText></w:r>
+    <w:r><w:fldChar w:fldCharType="begin"/></w:r>
+    <w:r><w:instrText xml:space="preserve"> PAGE \\* MERGEFORMAT </w:instrText></w:r>
+    <w:r><w:fldChar w:fldCharType="end"/></w:r>
+    <w:r><w:instrText xml:space="preserve"> －&quot; &quot;&quot; </w:instrText></w:r>
+    <w:r><w:fldChar w:fldCharType="separate"/></w:r>
+    <w:r><w:t></w:t></w:r>
+    <w:r><w:fldChar w:fldCharType="end"/></w:r>
   </w:p>
 </w:ftr>`;
 }
 
 /**
- * 估算文档页数（简单按段落数估算，不精确，仅用于决定是否显示页码）
- * 对应 VBA PageNumGW() 中 ComputeStatistics(wdStatisticPages) > 2 的判断
- */
-function estimatePageCount(structure: DocumentStructure): number {
-  const totalBlocks = structure.body.length + 3; // title + salutation + signoff
-  // 粗略：每页约20行
-  return Math.ceil(totalBlocks / 20) || 1;
-}
-
-/**
  * 生成 [Content_Types].xml
  */
-function buildContentTypes(hasFooter: boolean): string {
-  const footerEntry = hasFooter
-    ? '<Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>'
-    : '';
+function buildContentTypes(): string {
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
@@ -393,7 +378,7 @@ function buildContentTypes(hasFooter: boolean): string {
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
   <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
   <Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>
-  ${footerEntry}
+  <Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
 </Types>`;
 }
 
@@ -409,17 +394,14 @@ function buildRootRels(): string {
 
 /**
  * 生成 word/_rels/document.xml.rels
- * hasFooter 为 true 时添加页脚关系（rId99 对应 sectPr 中的引用）
+ * rId99 对应 sectPr 中的页脚引用。
  */
-function buildDocumentRels(hasFooter: boolean): string {
-  const footerRel = hasFooter
-    ? '<Relationship Id="rId99" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>'
-    : '';
+function buildDocumentRels(): string {
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
   <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>
-  ${footerRel}
+  <Relationship Id="rId99" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>
 </Relationships>`;
 }
 
@@ -429,6 +411,7 @@ function buildDocumentRels(hasFooter: boolean): string {
 function buildSettings(): string {
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:updateFields w:val="true"/>
   <w:compat>
     <w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/>
   </w:compat>
@@ -478,19 +461,18 @@ function buildStyles(): string {
  */
 function buildDocxFromScratch(
   structure: DocumentStructure,
-  _metadata: MetadataForm,
   templateConfig: TemplateConfig
 ): Blob {
-  const totalPages = estimatePageCount(structure);
-  // 仅超过2页才显示页码，对应 VBA PageNumGW 中的 ComputeStatistics > 2 判断
-  const hasFooter = totalPages > 2;
-
   // ── 收集所有段落 XML ──
   const paraXmls: string[] = [];
 
   // 主标题
   if (structure.title) {
     paraXmls.push(buildParagraphXml(structure.title, 'title', templateConfig));
+  }
+
+  for (const line of getHeaderMetadataLines(structure)) {
+    paraXmls.push(buildParagraphXml(line, 'colophon', templateConfig));
   }
 
   // 主送机关
@@ -522,8 +504,12 @@ function buildDocxFromScratch(
     }
   }
 
+  for (const line of getColophonLines(structure)) {
+    paraXmls.push(buildParagraphXml(line, 'colophon', templateConfig));
+  }
+
   // ── 构建 document.xml ──
-  const sectPrXml = buildSectPrXml(templateConfig, totalPages);
+  const sectPrXml = buildSectPrXml(templateConfig);
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"
             xmlns:mo="http://schemas.microsoft.com/office/mac/office/2008/main"
@@ -552,16 +538,13 @@ function buildDocxFromScratch(
   // ── 组装 PizZip 包 ──
   const encoder = new TextEncoder();
   const zip = new PizZip();
-  zip.file('[Content_Types].xml', encoder.encode(buildContentTypes(hasFooter)), { binary: true });
+  zip.file('[Content_Types].xml', encoder.encode(buildContentTypes()), { binary: true });
   zip.file('_rels/.rels', encoder.encode(buildRootRels()), { binary: true });
   zip.file('word/document.xml', encoder.encode(documentXml), { binary: true });
   zip.file('word/styles.xml', encoder.encode(buildStyles()), { binary: true });
   zip.file('word/settings.xml', encoder.encode(buildSettings()), { binary: true });
-  zip.file('word/_rels/document.xml.rels', encoder.encode(buildDocumentRels(hasFooter)), { binary: true });
-
-  if (hasFooter) {
-    zip.file('word/footer1.xml', encoder.encode(buildFooterXml()), { binary: true });
-  }
+  zip.file('word/_rels/document.xml.rels', encoder.encode(buildDocumentRels()), { binary: true });
+  zip.file('word/footer1.xml', encoder.encode(buildFooterXml()), { binary: true });
 
   const content = zip.generate({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', compression: 'DEFLATE' }) as unknown as Uint8Array;
   return new Blob([content as any], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
@@ -587,6 +570,10 @@ export async function exportDocx(
   metadata: MetadataForm,
   templateConfig: TemplateConfig
 ): Promise<Blob> {
+  // Defensively merge editable form values at the export boundary so callers
+  // cannot produce a preview/export mismatch with stale structure metadata.
+  const exportStructure = applyMetadataToStructure(structure, metadata);
+
   // ── 尝试加载自定义上传模板 ──
   if (templateConfig.base64Docx) {
     try {
@@ -598,22 +585,28 @@ export async function exportDocx(
       for (let i = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
       }
-      return await injectIntoTemplateBuffer(bytes.buffer, structure, metadata, templateConfig);
+      return await injectIntoTemplateBuffer(bytes.buffer, exportStructure, templateConfig);
     } catch (error) {
       console.warn(`[exportDocx] 自定义模板解析失败，将回退:`, error);
     }
   }
 
+  // A custom/standalone template explicitly configured with `none` must not
+  // silently fetch a GB template. Generate locally when no valid upload exists.
+  if (templateConfig.wordTemplatePreset === 'none') {
+    return buildDocxFromScratch(exportStructure, templateConfig);
+  }
+
   // ── 尝试加载预置 Word 模板 ──
-  const preset = templateConfig.wordTemplatePreset === 'none' ? 'gb' : templateConfig.wordTemplatePreset;
-  const tplUrl = `/templates/${preset}/${structure.docType}.docx`;
+  const preset = templateConfig.wordTemplatePreset;
+  const tplUrl = `/templates/${preset}/${exportStructure.docType}.docx`;
 
   try {
     const response = await fetch(tplUrl);
     if (response.ok) {
       const arrayBuffer = await response.arrayBuffer();
       // 模板文件存在：走注入路径（Hybrid Template Injection）
-      return await injectIntoTemplateBuffer(arrayBuffer, structure, metadata, templateConfig);
+      return await injectIntoTemplateBuffer(arrayBuffer, exportStructure, templateConfig);
     }
     // HTTP 错误（404 等）→ fallback
     console.info(`[exportDocx] 模板文件未找到 (${tplUrl})，已自动切换为从头生成模式。`);
@@ -623,7 +616,7 @@ export async function exportDocx(
   }
 
   // ── Fallback：从头构建 ──
-  return buildDocxFromScratch(structure, metadata, templateConfig);
+  return buildDocxFromScratch(exportStructure, templateConfig);
 }
 
 // ============================================================================
@@ -639,7 +632,6 @@ export async function exportDocx(
 async function injectIntoTemplateBuffer(
   arrayBuffer: ArrayBuffer,
   structure: DocumentStructure,
-  _metadata: MetadataForm,
   templateConfig: TemplateConfig
 ): Promise<Blob> {
   const zip = new PizZip(arrayBuffer);
@@ -692,14 +684,14 @@ async function injectIntoTemplateBuffer(
           signoffOrg: styles.signoffOrg,
           signoffDate: styles.signoffDate,
           attachment: styles.attachment,
+          colophon: styles.colophon,
         };
         return styleMap[styleKey] ?? styles.body;
       })(),
       rightIndentMap[styleKey]
     );
 
-    const escaped = text
-      .replace(/[^\x09\x0A\x0D\x20-\uD7FF\uE000-\uFFFD\u10000-\u10FFFF]/g, '')
+    const escaped = sanitizeXmlText(text)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');
@@ -734,6 +726,9 @@ async function injectIntoTemplateBuffer(
 
   const fragments: Element[] = [];
   if (structure.title) fragments.push(createParagraph(structure.title, 'title'));
+  for (const line of getHeaderMetadataLines(structure)) {
+    fragments.push(createParagraph(line, 'colophon'));
+  }
   if (structure.salutation) fragments.push(createParagraph(structure.salutation, 'salutation'));
   for (const block of structure.body) {
     let styleKey = 'body';
@@ -748,6 +743,9 @@ async function injectIntoTemplateBuffer(
   if (structure.signoff) {
     if (structure.signoff.organization) fragments.push(createParagraph(structure.signoff.organization, 'signoffOrg'));
     if (structure.signoff.date) fragments.push(createParagraph(structure.signoff.date, 'signoffDate'));
+  }
+  for (const line of getColophonLines(structure)) {
+    fragments.push(createParagraph(line, 'colophon'));
   }
 
   // ── 找占位符或追加到尾部 ──

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { DocumentStructure, BodyBlock } from '../../types/document';
 import type { TemplateConfig, ElementStyle } from '../../types/template';
 import pageStyles from '../pages/EditorPage.module.css';
+import { getColophonLines, getHeaderMetadataLines } from '../../core/documentMetadata';
 
 interface Props {
   structure: DocumentStructure | null;
@@ -95,6 +96,12 @@ export default function PreviewPanel({ structure, template, onBlockEdit }: Props
           </h1>
         )}
 
+        {getHeaderMetadataLines(structure).map((line, index) => (
+          <div key={`header-metadata-${index}`} style={getStyleObj(template.styles.colophon)}>
+            {line}
+          </div>
+        ))}
+
         {/* 主送机关 */}
         {structure.salutation && (
           <div style={{ ...getStyleObj(template.styles.salutation), marginBottom: '8px' }}>
@@ -163,6 +170,12 @@ export default function PreviewPanel({ structure, template, onBlockEdit }: Props
             </div>
           </div>
         )}
+
+        {getColophonLines(structure).map((line, index) => (
+          <div key={`colophon-${index}`} style={{ ...getStyleObj(template.styles.colophon), marginTop: index === 0 ? '18pt' : 0 }}>
+            {line}
+          </div>
+        ))}
       </div>
     </div>
   );

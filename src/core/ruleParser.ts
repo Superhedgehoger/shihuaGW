@@ -2,6 +2,7 @@ import type { DocumentStructure, BodyBlock, DocType, BlockType } from '../types/
 import type { FontMapItem } from './fontExtractor';
 import { normalizeText, normalizeDate } from './preprocessor';
 import { loadRules, compilePatterns } from './rulesEngine';
+import type { RulesStandard } from './templateStandard';
 
 /**
  * 将原始文档通过正则和特征分析转化为结构化对象 DocumentStructure
@@ -18,7 +19,7 @@ import { loadRules, compilePatterns } from './rulesEngine';
  * @param rulesPreset 规则包预设（默认 qsh）
  * @returns 结构化的公文对象
  */
-export function parseDocument(rawText: string, docType: DocType, importedFonts?: FontMapItem[], rulesPreset: string = 'qsh'): DocumentStructure {
+export function parseDocument(rawText: string, docType: DocType, importedFonts?: FontMapItem[], rulesPreset: RulesStandard = 'qsh'): DocumentStructure {
   const cleanedText = normalizeText(rawText);
   const lines = cleanedText.split('\n');
 
@@ -167,7 +168,14 @@ export function parseDocument(rawText: string, docType: DocType, importedFonts?:
     let type: BlockType = 'body';
     let isFlagged = false;
 
-    if (inAttachmentSection) {
+    if (patterns.cc.test(line)) {
+      // 版记字段不属于正文，也不能被前面的附件区吞掉。
+      if (!structure.cc) structure.cc = [];
+      const content = line.replace(/^(抄送|抄报)[：:]\s*/, '').trim();
+      if (content) structure.cc.push(content);
+      inAttachmentSection = false;
+      continue;
+    } else if (inAttachmentSection) {
       // 已进入附件区域后的所有行都归为附件
       type = 'attachment';
       if (!structure.attachments) structure.attachments = [];
@@ -205,10 +213,6 @@ export function parseDocument(rawText: string, docType: DocType, importedFonts?:
         if (!structure.attachments) structure.attachments = [];
         const content = line.replace(/^附件[：:]\s*/, '').trim();
         if (content) structure.attachments.push(content);
-      } else if (patterns.cc.test(line)) {
-        // 抄送行识别："抄送：xxx" 或 "抄报：xxx"
-        if (!structure.cc) structure.cc = [];
-        structure.cc.push(line);
       }
     }
 

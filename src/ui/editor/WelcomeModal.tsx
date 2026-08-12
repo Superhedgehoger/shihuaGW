@@ -39,7 +39,7 @@ export default function WelcomeModal() {
         </p>
 
         <div style={{ backgroundColor: 'var(--color-warning-light)', color: '#856404', padding: 'var(--space-md)', borderRadius: 'var(--radius-sm)', marginBottom: 'var(--space-lg)', fontSize: 'var(--text-sm)' }}>
-          <strong>注意：</strong> 正常导出需要依赖管理员配置在后端的 Word 基础模板（例如 <code>/templates/qsh/红头文件.docx</code>）。如果导出报错，请联系管理员提供模板。
+          <strong>离线说明：</strong> 系统会优先使用本机自定义模板或静态预置模板；未找到模板时会在浏览器内直接生成标准 Word 文件，不依赖后端服务。
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>

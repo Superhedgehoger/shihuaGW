@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useDocumentStore } from '../../store/useDocumentStore';
-import { useTemplateStore } from '../../store/useTemplateStore';
+import { useTemplateStore } from '../../store/TemplateStoreContext';
 import InputPanel from '../editor/InputPanel';
 import ModeSelector from '../editor/ModeSelector';
 import MetadataForm from '../editor/MetadataForm';
@@ -11,6 +11,7 @@ import HistoryPanel from '../editor/HistoryPanel';
 import SettingsModal from '../editor/SettingsModal';
 import TemplateMarketModal from '../editor/TemplateMarketModal';
 import PrintPreviewModal from '../editor/PrintPreviewModal';
+import { resolveRulesStandard } from '../../core/templateStandard';
 
 import styles from './EditorPage.module.css';
 
@@ -97,7 +98,7 @@ export default function EditorPage() {
       if (e.key === 'Enter') {
         e.preventDefault();
         if (!state.isProcessing && state.rawText.trim()) {
-          const rulesPreset = activeTemplate.rulesStandard || activeTemplate.wordTemplatePreset || 'qsh';
+          const rulesPreset = resolveRulesStandard(activeTemplate);
           processDocument(activeTemplate.id, rulesPreset);
         }
       } else if (e.key === 's') {
@@ -139,7 +140,11 @@ export default function EditorPage() {
 
           {/* 元数据折叠区 */}
           <div style={{ padding: '0 var(--space-md)', flexShrink: 0 }}>
-            <MetadataForm docType={state.docType} metadata={state.metadata} onChange={updateMetadata} />
+            <MetadataForm
+              docType={state.docType}
+              metadata={state.metadata}
+              onChange={(patch) => updateMetadata(patch, resolveRulesStandard(activeTemplate))}
+            />
           </div>
 
           {/* 操作按钮 */}
@@ -148,7 +153,7 @@ export default function EditorPage() {
               className="btn btn-primary"
               style={{ flex: 1 }}
               onClick={() => {
-                const rulesPreset = activeTemplate.rulesStandard || activeTemplate.wordTemplatePreset || 'qsh';
+                const rulesPreset = resolveRulesStandard(activeTemplate);
                 processDocument(activeTemplate.id, rulesPreset);
               }}
               disabled={state.isProcessing || !state.rawText.trim()}
@@ -198,7 +203,7 @@ export default function EditorPage() {
                 structure={state.structure}
                 template={activeTemplate}
                 onBlockEdit={(id, newText) => {
-                  const rulesPreset = activeTemplate.rulesStandard || activeTemplate.wordTemplatePreset || 'qsh';
+                  const rulesPreset = resolveRulesStandard(activeTemplate);
                   updateBlock(id, newText, rulesPreset);
                 }}
               />
