@@ -95,6 +95,15 @@ npm run test:e2e
 
 端到端测试会启动本地静态预览，在 Chromium 中验证文本处理、三种模式和 Word 下载，不会上传文档内容。
 
+### 自动化核心
+
+```bash
+npm run build:core
+node dist-cli/shihua-core.mjs --help
+```
+
+该命令生成无 React UI 依赖的单文件 Node.js CLI，可处理 TXT、Markdown 和 DOCX，并输出结构化诊断 JSON 或本地生成的 DOCX，供独立 Skill 等自动化载体复用。
+
 ---
 
 ## ⌨️ 全局快捷键

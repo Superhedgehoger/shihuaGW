@@ -9,6 +9,7 @@
 - 增加 TypeScript、19 项单元测试、Chromium 端到端测试与 CI 质量门禁
 - 大型自定义模板和历史正文改用 IndexedDB，并自动迁移旧 localStorage 数据
 - 页码改由 Word 的 IF/NUMPAGES 动态域按真实分页决定，移除不准确的段落数估算
+- 新增可独立构建的 Node.js 核心 CLI，供 Skill/自动化载体复用同一处理管线
 - 补充 MIT LICENSE，并校正文档中的离线导出说明
 
 ## v3.1.0 - 2026-08-09
