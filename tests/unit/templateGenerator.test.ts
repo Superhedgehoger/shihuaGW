@@ -9,6 +9,8 @@ describe('blank Word template generator', () => {
     const documentXml = zip.file('word/document.xml')?.asText() ?? '';
     expect(zip.file('[Content_Types].xml')).not.toBeNull();
     expect(zip.file('word/styles.xml')).not.toBeNull();
+    expect(zip.file('word/footer1.xml')?.asText()).toContain('NUMPAGES');
+    expect(zip.file('word/settings.xml')?.asText()).toContain('updateFields');
     expect(documentXml).toContain('{{BODY_PLACEHOLDER}}');
     expect(documentXml).toContain('w:left="1588"');
     expect(documentXml).toContain('w:right="1475"');

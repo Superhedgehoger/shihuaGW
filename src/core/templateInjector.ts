@@ -210,7 +210,7 @@ function elementStyleToWordStyle(es: import('../types/template').ElementStyle, i
  * 对应 VBA PaperSetup()：A4，上下2.54cm，左右3.17cm（GB）/ 左2.8右2.6（Q/SH）
  * 页眉距离1.5cm，页脚距离1.75cm（对应 VBA 中 HeaderDistance/FooterDistance）
  */
-function buildSectPrXml(cfg: TemplateConfig, totalPages: number): string {
+function buildSectPrXml(cfg: TemplateConfig): string {
   const topTwip    = Math.round(cfg.page.top    * CM_TO_TWIP);
   const bottomTwip = Math.round(cfg.page.bottom * CM_TO_TWIP);
   const leftTwip   = Math.round(cfg.page.left   * CM_TO_TWIP);
@@ -221,9 +221,7 @@ function buildSectPrXml(cfg: TemplateConfig, totalPages: number): string {
   const footerDistTwip = Math.round(1.75 * CM_TO_TWIP);
 
   // 注意：页脚引用 rId99，在 document.xml.rels 中需对应
-  const footerRef = totalPages > 2
-    ? '<w:footerReference w:type="default" r:id="rId99"/>'
-    : '';
+  const footerRef = '<w:footerReference w:type="default" r:id="rId99"/>';
 
   return `
     <w:sectPr>
@@ -318,7 +316,9 @@ function buildParagraphXml(text: string, styleKey: string, templateConfig?: Temp
  * 对应 VBA PageNumGW()：页码格式 "－ N －"，宋体14pt，居中
  * 使用全角连字符 "－"（U+FF0D），避免破折号导致 PDF 导出格式混乱
  *
- * NOTE: 此处使用 wdFieldPage 域代码（OOXML 中对应 <w:fldChar> + <w:instrText>PAGE</w:instrText>）
+ * Word evaluates the IF/NUMPAGES field after pagination, so page numbers are
+ * shown only when the real document has more than two pages. This avoids an
+ * inaccurate paragraph-count estimate.
  */
 function buildFooterXml(): string {
   // 14pt 字号 → 半磅值 280
@@ -350,53 +350,27 @@ function buildFooterXml(): string {
         <w:szCs w:val="${sz}"/>
       </w:rPr>
     </w:pPr>
-    <w:r>
-      <w:rPr>
-        <w:rFonts w:ascii="宋体" w:hAnsi="宋体" w:eastAsia="宋体"/>
-        <w:sz w:val="${sz}"/>
-        <w:szCs w:val="${sz}"/>
-      </w:rPr>
-      <w:t xml:space="preserve">－ </w:t>
-    </w:r>
-    <w:fldSimple w:instr=" PAGE \* MERGEFORMAT ">
-      <w:r>
-        <w:rPr>
-          <w:rFonts w:ascii="宋体" w:hAnsi="宋体" w:eastAsia="宋体"/>
-          <w:sz w:val="${sz}"/>
-          <w:szCs w:val="${sz}"/>
-        </w:rPr>
-        <w:t>1</w:t>
-      </w:r>
-    </w:fldSimple>
-    <w:r>
-      <w:rPr>
-        <w:rFonts w:ascii="宋体" w:hAnsi="宋体" w:eastAsia="宋体"/>
-        <w:sz w:val="${sz}"/>
-        <w:szCs w:val="${sz}"/>
-      </w:rPr>
-      <w:t xml:space="preserve"> －</w:t>
-    </w:r>
+    <w:r><w:fldChar w:fldCharType="begin"/></w:r>
+    <w:r><w:instrText xml:space="preserve"> IF </w:instrText></w:r>
+    <w:r><w:fldChar w:fldCharType="begin"/></w:r>
+    <w:r><w:instrText xml:space="preserve"> NUMPAGES </w:instrText></w:r>
+    <w:r><w:fldChar w:fldCharType="end"/></w:r>
+    <w:r><w:instrText xml:space="preserve"> &gt; 2 &quot;－ </w:instrText></w:r>
+    <w:r><w:fldChar w:fldCharType="begin"/></w:r>
+    <w:r><w:instrText xml:space="preserve"> PAGE \\* MERGEFORMAT </w:instrText></w:r>
+    <w:r><w:fldChar w:fldCharType="end"/></w:r>
+    <w:r><w:instrText xml:space="preserve"> －&quot; &quot;&quot; </w:instrText></w:r>
+    <w:r><w:fldChar w:fldCharType="separate"/></w:r>
+    <w:r><w:t></w:t></w:r>
+    <w:r><w:fldChar w:fldCharType="end"/></w:r>
   </w:p>
 </w:ftr>`;
 }
 
 /**
- * 估算文档页数（简单按段落数估算，不精确，仅用于决定是否显示页码）
- * 对应 VBA PageNumGW() 中 ComputeStatistics(wdStatisticPages) > 2 的判断
- */
-function estimatePageCount(structure: DocumentStructure): number {
-  const totalBlocks = structure.body.length + 3; // title + salutation + signoff
-  // 粗略：每页约20行
-  return Math.ceil(totalBlocks / 20) || 1;
-}
-
-/**
  * 生成 [Content_Types].xml
  */
-function buildContentTypes(hasFooter: boolean): string {
-  const footerEntry = hasFooter
-    ? '<Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>'
-    : '';
+function buildContentTypes(): string {
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
@@ -404,7 +378,7 @@ function buildContentTypes(hasFooter: boolean): string {
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
   <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
   <Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/>
-  ${footerEntry}
+  <Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
 </Types>`;
 }
 
@@ -420,17 +394,14 @@ function buildRootRels(): string {
 
 /**
  * 生成 word/_rels/document.xml.rels
- * hasFooter 为 true 时添加页脚关系（rId99 对应 sectPr 中的引用）
+ * rId99 对应 sectPr 中的页脚引用。
  */
-function buildDocumentRels(hasFooter: boolean): string {
-  const footerRel = hasFooter
-    ? '<Relationship Id="rId99" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>'
-    : '';
+function buildDocumentRels(): string {
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
   <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>
-  ${footerRel}
+  <Relationship Id="rId99" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>
 </Relationships>`;
 }
 
@@ -440,6 +411,7 @@ function buildDocumentRels(hasFooter: boolean): string {
 function buildSettings(): string {
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:updateFields w:val="true"/>
   <w:compat>
     <w:compatSetting w:name="compatibilityMode" w:uri="http://schemas.microsoft.com/office/word" w:val="15"/>
   </w:compat>
@@ -491,10 +463,6 @@ function buildDocxFromScratch(
   structure: DocumentStructure,
   templateConfig: TemplateConfig
 ): Blob {
-  const totalPages = estimatePageCount(structure);
-  // 仅超过2页才显示页码，对应 VBA PageNumGW 中的 ComputeStatistics > 2 判断
-  const hasFooter = totalPages > 2;
-
   // ── 收集所有段落 XML ──
   const paraXmls: string[] = [];
 
@@ -541,7 +509,7 @@ function buildDocxFromScratch(
   }
 
   // ── 构建 document.xml ──
-  const sectPrXml = buildSectPrXml(templateConfig, totalPages);
+  const sectPrXml = buildSectPrXml(templateConfig);
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"
             xmlns:mo="http://schemas.microsoft.com/office/mac/office/2008/main"
@@ -570,16 +538,13 @@ function buildDocxFromScratch(
   // ── 组装 PizZip 包 ──
   const encoder = new TextEncoder();
   const zip = new PizZip();
-  zip.file('[Content_Types].xml', encoder.encode(buildContentTypes(hasFooter)), { binary: true });
+  zip.file('[Content_Types].xml', encoder.encode(buildContentTypes()), { binary: true });
   zip.file('_rels/.rels', encoder.encode(buildRootRels()), { binary: true });
   zip.file('word/document.xml', encoder.encode(documentXml), { binary: true });
   zip.file('word/styles.xml', encoder.encode(buildStyles()), { binary: true });
   zip.file('word/settings.xml', encoder.encode(buildSettings()), { binary: true });
-  zip.file('word/_rels/document.xml.rels', encoder.encode(buildDocumentRels(hasFooter)), { binary: true });
-
-  if (hasFooter) {
-    zip.file('word/footer1.xml', encoder.encode(buildFooterXml()), { binary: true });
-  }
+  zip.file('word/_rels/document.xml.rels', encoder.encode(buildDocumentRels()), { binary: true });
+  zip.file('word/footer1.xml', encoder.encode(buildFooterXml()), { binary: true });
 
   const content = zip.generate({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', compression: 'DEFLATE' }) as unknown as Uint8Array;
   return new Blob([content as any], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
