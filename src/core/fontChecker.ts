@@ -1,6 +1,7 @@
 import { BlockType, BodyBlock } from '../types/document';
 import type { FontInfo } from './fontExtractor';
 import { loadRules } from './rulesEngine';
+import type { RulesStandard } from './templateStandard';
 
 /**
  * 字体别名归一化表（统一为 PRD 规范字体名）
@@ -81,7 +82,7 @@ function normalizeFont(name: string): string {
 /**
  * 检查单个段落的字体合规性
  */
-export function checkBlockFont(blockType: string, actualFont?: FontInfo | null, rulesPreset?: string): FontCheckResult {
+export function checkBlockFont(blockType: string, actualFont?: FontInfo | null, rulesPreset?: RulesStandard): FontCheckResult {
   let expected: { eastAsia: string; ascii: string } | undefined;
   if (rulesPreset) {
     const rules = loadRules(rulesPreset);
@@ -119,7 +120,7 @@ export function checkBlockFont(blockType: string, actualFont?: FontInfo | null, 
 /**
  * 批量检查全文所有 BodyBlock 的字体合规性，以及结构化字段的合规性
  */
-export function checkAllFonts(blocks: BodyBlock[], fontInfos?: import('../types/document').DocumentStructure['fontInfos'], rulesPreset?: string): FontReport {
+export function checkAllFonts(blocks: BodyBlock[], fontInfos?: import('../types/document').DocumentStructure['fontInfos'], rulesPreset?: RulesStandard): FontReport {
   let totalIssues = 0;
   const results = blocks.map(block => {
     const { compliant, issues } = checkBlockFont(block.type, block.fontInfo, rulesPreset);

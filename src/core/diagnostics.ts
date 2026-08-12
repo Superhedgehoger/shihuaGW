@@ -1,6 +1,7 @@
 import type { DocumentStructure, DiagnosticReport, DiagnosticIssue } from '../types/document';
 import { checkBlockFont } from './fontChecker';
 import { getStrictDocTypes } from './rulesEngine';
+import type { RulesStandard } from './templateStandard';
 
 /**
  * 运行格式诊断（对应应用设计的 B 模式：格式诊断）
@@ -9,7 +10,7 @@ import { getStrictDocTypes } from './rulesEngine';
  * @param structure 识别出的公文结构
  * @returns 诊断报告
  */
-export function runDiagnostics(structure: DocumentStructure, rulesPreset: string = 'qsh'): DiagnosticReport {
+export function runDiagnostics(structure: DocumentStructure, rulesPreset: RulesStandard = 'qsh'): DiagnosticReport {
   const issues: DiagnosticIssue[] = [];
 
   const addIssue = (type: DiagnosticIssue['type'], level: DiagnosticIssue['level'], message: string, example?: string) => {

@@ -1,7 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
 import type { DocumentState, DocType, ProcessMode, MetadataForm } from '../types/document';
-import { parseDocument } from '../core/ruleParser';
-import { applyVbaFormatting } from '../core/vbaFormatter';
 import { runDiagnostics } from '../core/diagnostics';
 import { validateStructure } from '../core/validator';
 import { addToHistory } from '../core/history';
@@ -9,6 +7,8 @@ import { getSetting, addRecentMetadata } from '../core/configManager';
 import { checkAllFonts } from '../core/fontChecker';
 import type { FontMapItem } from '../core/fontExtractor';
 import { applyMetadataToStructure, populateMetadataFromStructure } from '../core/documentMetadata';
+import { processDocumentCore } from '../core/documentProcessor';
+import type { RulesStandard } from '../core/templateStandard';
 
 const INITIAL_METADATA: MetadataForm = {
   fileNumber: '', salutation: '', signoffOrg: '', signoffDate: '', cc: '',
@@ -54,7 +54,7 @@ export function useDocumentStore() {
     setState(prev => ({ ...prev, processMode }));
   }, []);
 
-  const updateMetadata = useCallback((patch: Partial<MetadataForm>, rulesPreset: string = 'qsh') => {
+  const updateMetadata = useCallback((patch: Partial<MetadataForm>, rulesPreset: RulesStandard = 'qsh') => {
     setState(prev => {
       const metadata = { ...prev.metadata, ...patch };
       if (!prev.structure) return { ...prev, metadata };
@@ -78,31 +78,26 @@ export function useDocumentStore() {
    * 触发执行核心处理引擎
    * NOTE: 通过 stateRef 读取最新值，依赖数组为空，确保引用稳定
    */
-  const processDocument = useCallback(async (activeTemplateId: string = 'default', rulesPreset: string = 'qsh') => {
-    const { rawText, docType, metadata } = stateRef.current;
+  const processDocument = useCallback(async (activeTemplateId: string = 'default', rulesPreset: RulesStandard = 'qsh') => {
+    const { rawText, docType, processMode, metadata } = stateRef.current;
     if (!rawText.trim()) return;
 
     setState(prev => ({ ...prev, isProcessing: true }));
     try {
-      // 1. 结构解析 (传入 importedFonts)
-      const rawStructure = parseDocument(rawText, docType, importedFonts, rulesPreset);
-      
-      // 2. 应用 VBA 等效排版规则（自动重编号、标题规范化、附件整理等）
-      let structure = applyVbaFormatting(rawStructure);
-      
-      // 3. 结合解析内容自动填充元数据（如果为空）
-      const newMetadata = populateMetadataFromStructure(metadata, structure);
-      structure = applyMetadataToStructure(structure, newMetadata);
-
-      // 4. 运行诊断与校验
-      const diagnosticReport = runDiagnostics(structure, rulesPreset);
-      
-      // 5. 运行字体检查
-      const fontReport = checkAllFonts(structure.body, structure.fontInfos, rulesPreset);
-      structure.body = fontReport.blocks; // 写回带有检查结果的块
-
-      // NOTE: validateStructure 在字体检查后执行，确保能拿到完整的 fontReport
-      const validationResults = validateStructure(structure, fontReport, rulesPreset);
+      const {
+        structure,
+        metadata: newMetadata,
+        diagnosticReport,
+        validationResults,
+        fontReport,
+      } = processDocumentCore({
+        rawText,
+        docType,
+        processMode,
+        metadata,
+        importedFonts,
+        rulesStandard: rulesPreset,
+      });
 
       setState(prev => ({
         ...prev,
@@ -133,7 +128,7 @@ export function useDocumentStore() {
   }, [importedFonts]); // 依赖于 importedFonts
 
   /** 编辑某一段落块内容，并重新进行校验 */
-  const updateBlock = useCallback((id: string, newText: string, rulesPreset: string = 'qsh') => {
+  const updateBlock = useCallback((id: string, newText: string, rulesPreset: RulesStandard = 'qsh') => {
     setState(prev => {
       if (!prev.structure) return prev;
       

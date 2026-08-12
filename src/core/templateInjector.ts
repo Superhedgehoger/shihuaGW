@@ -2,6 +2,7 @@ import PizZip from 'pizzip';
 import type { DocumentStructure, MetadataForm } from '../types/document';
 import type { TemplateConfig } from '../types/template';
 import { applyMetadataToStructure, getColophonLines, getHeaderMetadataLines } from './documentMetadata';
+import { sanitizeXmlText } from './xmlText';
 
 // ============================================================================
 // 辅助常量
@@ -280,8 +281,7 @@ function buildParagraphXml(text: string, styleKey: string, templateConfig?: Temp
     : '';
 
   // 转义 XML 特殊字符并过滤非法控制字符
-  const escaped = text
-    .replace(/[^\x09\x0A\x0D\x20-\uD7FF\uE000-\uFFFD\u10000-\u10FFFF]/g, '')
+  const escaped = sanitizeXmlText(text)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
@@ -726,8 +726,7 @@ async function injectIntoTemplateBuffer(
       rightIndentMap[styleKey]
     );
 
-    const escaped = text
-      .replace(/[^\x09\x0A\x0D\x20-\uD7FF\uE000-\uFFFD\u10000-\u10FFFF]/g, '')
+    const escaped = sanitizeXmlText(text)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;');

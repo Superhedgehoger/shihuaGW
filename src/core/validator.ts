@@ -1,6 +1,7 @@
 import type { DocumentStructure, ValidationResult } from '../types/document';
 import type { FontReport } from './fontChecker';
 import { getStrictDocTypes } from './rulesEngine';
+import type { RulesStandard } from './templateStandard';
 
 /**
  * 规范校验引擎
@@ -13,7 +14,7 @@ import { getStrictDocTypes } from './rulesEngine';
 export function validateStructure(
   structure: DocumentStructure,
   fontReport?: FontReport | null,
-  rulesPreset: string = 'qsh'
+  rulesPreset: RulesStandard = 'qsh'
 ): ValidationResult[] {
   const results: ValidationResult[] = [];
 

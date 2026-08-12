@@ -31,4 +31,20 @@ describe('ruleParser', () => {
     expect(attachments).toBeDefined();
     expect(attachments?.length).toBe(3);
   });
+
+  it('extracts colophon recipients without duplicating prefixes or treating them as attachments', () => {
+    const structure = parseDocument([
+      '关于测试的通知',
+      '各部门：',
+      '正文。',
+      '附件：测试清单',
+      '抄送：总部机关；所属单位',
+      '测试办公室',
+      '2026年8月12日',
+    ].join('\n'), '通知', undefined, 'qsh');
+
+    expect(structure.attachments).toEqual(['测试清单']);
+    expect(structure.cc).toEqual(['总部机关；所属单位']);
+    expect(structure.body.some(block => block.text.startsWith('抄送'))).toBe(false);
+  });
 });
