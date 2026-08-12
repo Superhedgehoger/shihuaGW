@@ -7,6 +7,7 @@
 - 修复抄送版记重复前缀、附件区吞并版记、上传字体残留和自定义模板规则回退
 - 修复 XML 高位 Unicode 清洗，保留扩展汉字与 emoji 并过滤非法控制字符
 - 增加 TypeScript、19 项单元测试、Chromium 端到端测试与 CI 质量门禁
+- 大型自定义模板和历史正文改用 IndexedDB，并自动迁移旧 localStorage 数据
 - 补充 MIT LICENSE，并校正文档中的离线导出说明
 
 ## v3.1.0 - 2026-08-09

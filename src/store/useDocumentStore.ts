@@ -111,7 +111,7 @@ export function useDocumentStore() {
 
       // 如果开启了自动保存，则存入历史记录
       if (getSetting('autoSave', true)) {
-        addToHistory({
+        await addToHistory({
           inputText: rawText,
           docType,
           templateId: activeTemplateId,

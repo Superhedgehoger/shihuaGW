@@ -2,15 +2,16 @@ import { useState, useEffect, useCallback } from 'react';
 import type { TemplateConfig, TemplateStore } from '../types/template';
 import { BUILTIN_TEMPLATES, DEFAULT_TEMPLATE_ID } from '../constants/defaultTemplates';
 import { mergeLegacyTemplates, readLegacyTemplates } from '../core/templateMigration';
+import { getBrowserValue, setBrowserValue } from '../core/browserStorage';
 
 const STORAGE_KEY = 'shihua_template_store';
 const LEGACY_STORAGE_KEY = 'customTemplates';
 const LEGACY_MIGRATION_KEY = 'shihua_legacy_templates_migrated_v1';
 
 /**
- * 从 localStorage 加载模板仓库，合并内置模板（内置始终以代码为准）
+ * 同步读取旧存储作为首屏快照；异步 IndexedDB 数据会在 Hook 挂载后覆盖。
  */
-function loadStore(): TemplateStore {
+function loadLocalSnapshot(): TemplateStore {
   let loaded: TemplateStore = {
     builtin: BUILTIN_TEMPLATES,
     user: {},
@@ -29,27 +30,45 @@ function loadStore(): TemplateStore {
   } catch {
     // 读取失败时使用默认值
   }
-  if (localStorage.getItem(LEGACY_MIGRATION_KEY) === '1') return loaded;
+  return loaded;
+}
 
-  // Keep the old key untouched as a backup. Merge it even when a v3 store
-  // already exists, which is the normal case for returning users.
+async function loadStore(): Promise<TemplateStore> {
+  let loaded = loadLocalSnapshot();
   try {
-    const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
-    if (legacyRaw) {
-      const merged = mergeLegacyTemplates(loaded.user, JSON.parse(legacyRaw), generateId);
-      loaded = { ...loaded, user: merged.user };
-      if (merged.imported > 0) saveStore(loaded);
+    const raw = await getBrowserValue(STORAGE_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw) as Partial<TemplateStore>;
+      loaded = {
+        builtin: BUILTIN_TEMPLATES,
+        user: saved.user ?? {},
+        activeTemplateId: saved.activeTemplateId ?? DEFAULT_TEMPLATE_ID,
+      };
     }
-    localStorage.setItem(LEGACY_MIGRATION_KEY, '1');
   } catch {
-    // Invalid legacy data should not prevent the application from starting.
+    // The synchronous legacy snapshot remains usable.
+  }
+
+  // Keep the old key untouched as a backup and migrate it once into IndexedDB.
+  if (localStorage.getItem(LEGACY_MIGRATION_KEY) !== '1') {
+    try {
+      const legacyRaw = localStorage.getItem(LEGACY_STORAGE_KEY);
+      if (legacyRaw) {
+        const merged = mergeLegacyTemplates(loaded.user, JSON.parse(legacyRaw), generateId);
+        loaded = { ...loaded, user: merged.user };
+      }
+      await saveStore(loaded);
+      localStorage.setItem(LEGACY_MIGRATION_KEY, '1');
+    } catch {
+      // Invalid legacy data should not prevent the application from starting.
+    }
   }
   return loaded;
 }
 
-function saveStore(store: TemplateStore): void {
+async function saveStore(store: TemplateStore): Promise<void> {
   // NOTE: 只持久化 user 区和 activeTemplateId，builtin 始终从代码读取
-  localStorage.setItem(
+  await setBrowserValue(
     STORAGE_KEY,
     JSON.stringify({ user: store.user, activeTemplateId: store.activeTemplateId })
   );
@@ -65,12 +84,27 @@ function generateId(): string {
  * 提供增删改查、激活管理、导入/导出能力
  */
 export function useTemplateStoreState() {
-  const [store, setStore] = useState<TemplateStore>(loadStore);
+  const [store, setStore] = useState<TemplateStore>(loadLocalSnapshot);
+  const [isHydrated, setIsHydrated] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadStore().then(loaded => {
+      if (!cancelled) {
+        setStore(loaded);
+        setIsHydrated(true);
+      }
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   // 状态变更时自动持久化
   useEffect(() => {
-    saveStore(store);
-  }, [store]);
+    if (!isHydrated) return;
+    void saveStore(store).catch(error => {
+      console.error('模板本地保存失败', error);
+    });
+  }, [store, isHydrated]);
 
   /** 获取所有模板（内置 + 用户自定义），按内置优先排列 */
   const getAllTemplates = useCallback((): TemplateConfig[] => {

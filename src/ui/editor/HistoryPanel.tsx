@@ -12,20 +12,24 @@ export default function HistoryPanel({ isOpen, onClose, onSelect }: HistoryPanel
   const [filter, setFilter] = useState('');
 
   useEffect(() => {
+    let cancelled = false;
     if (isOpen) {
-      setHistory(getHistory());
+      void getHistory().then(items => {
+        if (!cancelled) setHistory(items);
+      });
     }
+    return () => { cancelled = true; };
   }, [isOpen]);
 
-  const handleDelete = (id: string, e: React.MouseEvent) => {
+  const handleDelete = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    const updated = deleteHistoryItem(id);
+    const updated = await deleteHistoryItem(id);
     setHistory(updated);
   };
 
-  const handleClear = () => {
+  const handleClear = async () => {
     if (window.confirm('确定清空所有历史记录？')) {
-      clearHistory();
+      await clearHistory();
       setHistory([]);
     }
   };

@@ -1,4 +1,5 @@
 import { DocType, MetadataForm } from '../types/document';
+import { getBrowserValue, removeBrowserValue, setBrowserValue } from './browserStorage';
 
 const HISTORY_KEY = 'shihua_doc_history';
 const MAX_HISTORY = 20;
@@ -13,16 +14,16 @@ export interface HistoryItem {
   timestamp: string;
 }
 
-export function addToHistory(doc: {
+export async function addToHistory(doc: {
   title?: string;
   inputText: string;
   docType: DocType;
   templateId: string;
   metadata: MetadataForm;
-}): HistoryItem | undefined {
+}): Promise<HistoryItem | undefined> {
   if (!doc.inputText?.trim()) return undefined;
   
-  const history = getHistory();
+  const history = await getHistory();
   const title = doc.title || doc.inputText.substring(0, 30) + '...';
   
   const newItem: HistoryItem = {
@@ -46,31 +47,31 @@ export function addToHistory(doc: {
     history.pop();
   }
   
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  await setBrowserValue(HISTORY_KEY, JSON.stringify(history));
   return newItem;
 }
 
-export function getHistory(): HistoryItem[] {
+export async function getHistory(): Promise<HistoryItem[]> {
   try {
-    const stored = localStorage.getItem(HISTORY_KEY);
+    const stored = await getBrowserValue(HISTORY_KEY);
     return stored ? JSON.parse(stored) : [];
   } catch {
     return [];
   }
 }
 
-export function clearHistory(): void {
-  localStorage.removeItem(HISTORY_KEY);
+export async function clearHistory(): Promise<void> {
+  await removeBrowserValue(HISTORY_KEY);
 }
 
-export function deleteHistoryItem(id: string): HistoryItem[] {
-  const history = getHistory().filter(item => item.id !== id);
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+export async function deleteHistoryItem(id: string): Promise<HistoryItem[]> {
+  const history = (await getHistory()).filter(item => item.id !== id);
+  await setBrowserValue(HISTORY_KEY, JSON.stringify(history));
   return history;
 }
 
-export function getHistoryItem(id: string): HistoryItem | undefined {
-  const history = getHistory();
+export async function getHistoryItem(id: string): Promise<HistoryItem | undefined> {
+  const history = await getHistory();
   return history.find(item => item.id === id);
 }
 
